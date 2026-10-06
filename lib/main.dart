@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui' show ImageFilter, FontFeature;
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show
@@ -12,17 +14,16 @@ import 'package:flutter/services.dart'
         SystemUiMode,
         SystemUiOverlayStyle;
 import 'package:flutter/cupertino.dart'
-    show
-        CupertinoPageRoute,
-        CupertinoPageTransition,
-        DefaultCupertinoLocalizations;
+    show CupertinoPageRoute, DefaultCupertinoLocalizations, showCupertinoModalPopup;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:tdesign_flutter/tdesign_flutter.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'api.dart';
 import 'player.dart';
+import 'cupertino_navigation.dart';
 part 'mobile_ui.dart';
 part 'design.dart';
 part 'song_detail.dart';
@@ -42,7 +43,8 @@ Future<void> main() async {
   // Đọc chế độ sáng/tối đã lưu từ lần trước.
   var savedDark = false;
   try {
-    savedDark = (await SharedPreferences.getInstance()).getBool(_darkKey) ?? false;
+    savedDark =
+        (await SharedPreferences.getInstance()).getBool(_darkKey) ?? false;
   } catch (_) {}
   // Android: vẽ tràn viền, thanh trạng thái / thanh điều hướng trong suốt.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -103,8 +105,9 @@ class _MusicAppState extends State<MusicApp> {
         systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarContrastEnforced: false,
         statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-        systemNavigationBarIconBrightness:
-            dark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: dark
+            ? Brightness.light
+            : Brightness.dark,
         statusBarBrightness: dark ? Brightness.dark : Brightness.light,
       ),
       child: Theme(
@@ -123,10 +126,8 @@ class _MusicAppState extends State<MusicApp> {
         ),
       ),
     ),
-    pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
-      settings: settings,
-      pageBuilder: (context, animation, secondary) => builder(context),
-    ),
+    pageRouteBuilder: <T>(settings, builder) =>
+        CupertinoPageRoute<T>(settings: settings, builder: builder),
     home: MusicHome(onTheme: _toggleTheme),
   );
 }
@@ -138,8 +139,7 @@ class MusicHome extends StatefulWidget {
   State<MusicHome> createState() => _MusicHomeState();
 }
 
-class _MusicHomeState extends State<MusicHome>
-    with SingleTickerProviderStateMixin {
+class _MusicHomeState extends State<MusicHome> {
   void updateUI(VoidCallback action) => setState(action);
   final api = Api();
   late final MusicPlayer player;
@@ -162,17 +162,6 @@ class _MusicHomeState extends State<MusicHome>
   String detailBackSection = 'Khám phá';
   Json? detailBackPlaylist;
   String section = 'Khám phá', genre = '', query = '';
-  bool reversePage = false;
-  // Vuốt-từ-mép-trái-để-quay-lại kiểu iOS: backCtl là tiến độ kéo (0..1),
-  // backActive = đang kéo/đang trả về (lúc đó mới dựng trang nền phía sau),
-  // skipSwitch = bỏ hiệu ứng chuyển trang khi vừa hoàn tất cú vuốt.
-  late final AnimationController backCtl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 320),
-  );
-  bool backActive = false, skipSwitch = false;
-  // Bộ nhớ đệm theo tab: quay lại tab/trang cũ hiện ngay, dữ liệu mới được
-  // tải ngầm rồi cập nhật sau (không hiện loading, không nhảy nội dung).
   final snapshots = <String, Map<String, dynamic>>{};
   static const cacheable = [
     'Khám phá',
@@ -272,7 +261,8 @@ class _MusicHomeState extends State<MusicHome>
     final email = user?['email']?.toString();
     return all.where((s) {
       final uploader = s['uploader'];
-      final uid = s['uploaderId']?.toString() ??
+      final uid =
+          s['uploaderId']?.toString() ??
           (uploader is Map ? uploader['id']?.toString() : null);
       final uemail = uploader is Map ? uploader['email']?.toString() : null;
       return (id.isNotEmpty && uid == id) ||
@@ -303,9 +293,9 @@ class _MusicHomeState extends State<MusicHome>
     try {
       if (section == 'Chi tiết bài hát' && songDetail != null) {
         final detail = await api.request(
-          Uri(
-            pathSegments: ['api', 'songs', songDetail!['id'] as String],
-          ).toString().replaceFirst('api/', '/api/'),
+          Uri(pathSegments: ['api', 'songs', songDetail!['id'] as String])
+              .toString()
+              .replaceFirst('api/', '/api/'),
         );
         if (mounted && ticket == requestId) {
           setState(() {
@@ -337,7 +327,10 @@ class _MusicHomeState extends State<MusicHome>
           method: 'POST',
           data: {
             'excludeIds': append
-                ? songs.skip(songs.length > 60 ? songs.length - 60 : 0).map((e) => e['id']).toList()
+                ? songs
+                      .skip(songs.length > 60 ? songs.length - 60 : 0)
+                      .map((e) => e['id'])
+                      .toList()
                 : [],
           },
         );
@@ -371,7 +364,7 @@ class _MusicHomeState extends State<MusicHome>
                 section == 'Dành cho bạn' && result.isNotEmpty);
         loading = false;
         loadingMore = false;
-            refreshing = false;
+        refreshing = false;
       });
     } catch (e) {
       if (silent) {
@@ -387,7 +380,7 @@ class _MusicHomeState extends State<MusicHome>
           error = e.toString();
           loading = false;
           loadingMore = false;
-            refreshing = false;
+          refreshing = false;
         });
       }
     }
@@ -404,11 +397,6 @@ class _MusicHomeState extends State<MusicHome>
       };
     }
     final snap = cacheable.contains(value) ? snapshots[value] : null;
-    reversePage =
-        (['Tìm kiếm', 'Chi tiết bài hát'].contains(section) &&
-            !['Tìm kiếm', 'Chi tiết bài hát'].contains(value)) ||
-        // Quay lại từ chi tiết playlist về thư viện playlist.
-        (playlist != null && value == 'Playlist');
     debounce?.cancel();
     const feedSection = 'Dành cho bạn';
     // Rời feed: lưu danh sách + vị trí hiện tại.
@@ -513,33 +501,34 @@ class _MusicHomeState extends State<MusicHome>
     final fill = dark ? const Color(0xFF222F40) : const Color(0xFFEEF1F6);
     final line = dark ? const Color(0xFF3A4A5F) : const Color(0xFFCBD3DF);
     return Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: line),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: line),
+        ),
+        child: TDInput(
+          showBottomDivider: false,
+          textStyle: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 14,
+            decoration: TextDecoration.none,
+          ),
+          hintTextStyle: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
+          controller: controller,
+          hintText: hint,
+          obscureText: secret,
+          backgroundColor: fill,
+        ),
       ),
-      child: TDInput(
-      showBottomDivider: false,
-      textStyle: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface,
-        fontSize: 14,
-        decoration: TextDecoration.none,
-      ),
-      hintTextStyle: TextStyle(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        fontSize: 14,
-      ),
-      controller: controller,
-      hintText: hint,
-      obscureText: secret,
-      backgroundColor: fill,
-    ),
-    ),
-  );
+    );
   }
+
   Future<void> auth() async {
     final email = TextEditingController(),
         password = TextEditingController(),
@@ -571,57 +560,56 @@ class _MusicHomeState extends State<MusicHome>
                 SizedBox(
                   width: double.infinity,
                   child: button(
-                  busy
-                      ? 'Đang xử lý…'
-                      : register
-                      ? 'Đăng ký'
-                      : 'Đăng nhập',
-                  () async {
-                    if (busy) return;
-                    if (!email.text.contains('@') ||
-                        password.text.length < 6 ||
-                        register && name.text.trim().isEmpty) {
-                      update(
-                        () => failure =
-                            'Nhập email, mật khẩu ít nhất 6 ký tự và tên nếu đăng ký.',
-                      );
-                      return;
-                    }
-                    update(() {
-                      busy = true;
-                      failure = null;
-                    });
-                    try {
-                      if (register) {
-                        await api.request(
-                          '/api/auth/register',
-                          method: 'POST',
-                          data: {
-                            'name': name.text.trim(),
-                            'email': email.text.trim(),
-                            'password': password.text,
-                          },
+                    busy
+                        ? 'Đang xử lý…'
+                        : register
+                        ? 'Đăng ký'
+                        : 'Đăng nhập',
+                    () async {
+                      if (busy) return;
+                      if (!email.text.contains('@') ||
+                          password.text.length < 6 ||
+                          register && name.text.trim().isEmpty) {
+                        update(
+                          () => failure = 'Nhập email, mật khẩu ít nhất 6 ký tự và tên nếu đăng ký.',
                         );
+                        return;
                       }
-                      await api.login(email.text.trim(), password.text);
-                      final me = await api.me();
-                      if (!mounted) return;
-                      snapshots.clear(); // đổi tài khoản: bỏ cache cũ
-                      setState(() => user = me);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                    } catch (e) {
-                      if (ctx.mounted) {
-                        update(() {
-                          failure = e.toString().replaceFirst(
-                            'Exception: ',
-                            '',
+                      update(() {
+                        busy = true;
+                        failure = null;
+                      });
+                      try {
+                        if (register) {
+                          await api.request(
+                            '/api/auth/register',
+                            method: 'POST',
+                            data: {
+                              'name': name.text.trim(),
+                              'email': email.text.trim(),
+                              'password': password.text,
+                            },
                           );
-                          busy = false;
-                        });
+                        }
+                        await api.login(email.text.trim(), password.text);
+                        final me = await api.me();
+                        if (!mounted) return;
+                        snapshots.clear(); // đổi tài khoản: bỏ cache cũ
+                        setState(() => user = me);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          update(() {
+                            failure = e.toString().replaceFirst(
+                              'Exception: ',
+                              '',
+                            );
+                            busy = false;
+                          });
+                        }
                       }
-                    }
-                  },
-                  primary: true,
+                    },
+                    primary: true,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -709,9 +697,9 @@ class _MusicHomeState extends State<MusicHome>
     navigate('Playlist');
   });
   Future<void> addToPlaylist(Json song) => requireUser(() async {
-    final items = (await api.list(
-      '/api/playlists',
-    )).where((e) => e['isOwner'] == true).toList();
+    final items = (await api.list('/api/playlists'))
+        .where((e) => e['isOwner'] == true)
+        .toList();
     if (!mounted) return;
     final id = await appDialog<String>(
       context: context,
@@ -770,115 +758,28 @@ class _MusicHomeState extends State<MusicHome>
   Widget pageBody(bool wide) {
     final routeKey = ValueKey(
       section == 'Chi tiết bài hát'
-          ? 'song:${songDetail?['id']}'
+          ? 'song'
           : playlist != null
           ? 'playlist:${playlist!['id']}'
           : section == 'Tìm kiếm'
           ? 'search'
           : 'tabs',
     );
-    final switcher = AnimatedSwitcher(
-        // Hiệu ứng chuyển trang y hệt iOS (CupertinoPageTransition): trang mới
-        // trượt vào từ phải kèm bóng, trang cũ lùi 1/3 (parallax). Đường cong
-        // đã nằm trong CupertinoPageTransition nên ở đây để linear.
-        duration: skipSwitch
-            ? Duration.zero
-            : const Duration(milliseconds: 500),
-        reverseDuration: skipSwitch
-            ? Duration.zero
-            : const Duration(milliseconds: 500),
-        switchInCurve: Curves.linear,
-        switchOutCurve: Curves.linear,
-        // Đi tới: trang mới nằm trên. Quay lại: trang đang rời đi nằm trên.
-        layoutBuilder: (current, previous) => Stack(
-          fit: StackFit.expand,
-          children: reversePage
-              ? [?current, ...previous]
-              : [...previous, ?current],
-        ),
-        transitionBuilder: (child, animation) {
-          final incoming = child.key == routeKey;
-          // primary: trang tự trượt vào/ra. secondary: trang bị trang khác phủ
-          // lên/lộ ra nên dịch nhẹ sang trái.
-          final Animation<double> primary;
-          final Animation<double> secondary;
-          if (reversePage) {
-            primary = incoming ? kAlwaysCompleteAnimation : animation;
-            secondary = incoming
-                ? ReverseAnimation(animation)
-                : kAlwaysDismissedAnimation;
-          } else {
-            primary = incoming ? animation : kAlwaysCompleteAnimation;
-            secondary = incoming
-                ? kAlwaysDismissedAnimation
-                : ReverseAnimation(animation);
-          }
-          return CupertinoPageTransition(
-            primaryRouteAnimation: primary,
-            secondaryRouteAnimation: secondary,
-            linearTransition: false,
-            child: child,
-          );
-        },
-        child: KeyedSubtree(
-          key: routeKey,
-          // Nền đặc để trang cũ/mới không nhìn xuyên qua nhau khi đang trượt.
-          child: ColoredBox(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: Column(
-              children: [
-                if (section == 'Tìm kiếm')
-                  Padding(
-                    padding: EdgeInsets.only(top: glassTop),
-                    child: searchPanel(),
-                  ),
-                Expanded(child: content(wide)),
-              ],
-            ),
-          ),
-        ),
-      );
-    // Trang hiện tại bám theo ngón tay (FractionalTranslation theo backCtl);
-    // trang phía sau chỉ được dựng khi đang kéo, lùi nhẹ sang trái (parallax).
-    return ClipRect(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (backActive)
-            AnimatedBuilder(
-              animation: backCtl,
-              child: backUnderlay(wide),
-              builder: (_, child) => FractionalTranslation(
-                translation: Offset(-(1 - backCtl.value) / 3, 0),
-                child: child,
+    return CupertinoNavigation(
+      routeKey: routeKey,
+      onBack: goBack,
+      child: ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: Column(
+          children: [
+            if (section == 'Tìm kiếm')
+              Padding(
+                padding: EdgeInsets.only(top: glassTop),
+                child: searchPanel(),
               ),
-            )
-          else
-            const SizedBox.shrink(),
-          AnimatedBuilder(
-            animation: backCtl,
-            child: switcher,
-            builder: (_, child) => FractionalTranslation(
-              translation: Offset(backCtl.value, 0),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  boxShadow: backCtl.value > 0
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: .22 * (1 - backCtl.value),
-                            ),
-                            blurRadius: 16,
-                            offset: const Offset(-4, 0),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: child,
-              ),
-            ),
-          ),
-        ],
+            Expanded(child: content(wide)),
+          ],
+        ),
       ),
     );
   }
@@ -915,9 +816,7 @@ class _MusicHomeState extends State<MusicHome>
         // không nhớ vì kết quả luôn đổi.
         key: section == 'Tìm kiếm'
             ? const ValueKey('list:search')
-            : PageStorageKey<String>(
-                'list:$section:${playlist?['id'] ?? ''}',
-              ),
+            : PageStorageKey<String>('list:$section:${playlist?['id'] ?? ''}'),
         padding: EdgeInsets.fromLTRB(
           wide ? 32 : 16,
           12 + (section == 'Tìm kiếm' ? 0 : glassTop),
@@ -952,53 +851,53 @@ class _MusicHomeState extends State<MusicHome>
               ),
             ),
           if (!(section == 'Cá nhân' && user != null)) ...[
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  playlist?['name'] ??
-                      (query.isNotEmpty
-                          ? 'Kết quả cho “$query”'
-                          : genre.isNotEmpty
-                          ? genre
-                          : section == 'Khám phá'
-                          ? 'Mới phát hành'
-                          : section),
-                  style: TextStyle(
-                    fontSize: wide ? 26 : 22,
-                    fontWeight: FontWeight.w800,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    playlist?['name'] ??
+                        (query.isNotEmpty
+                            ? 'Kết quả cho “$query”'
+                            : genre.isNotEmpty
+                            ? genre
+                            : section == 'Khám phá'
+                            ? 'Mới phát hành'
+                            : section),
+                    style: TextStyle(
+                      fontSize: wide ? 26 : 22,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              if (section == 'Playlist' && playlist == null)
+                if (section == 'Playlist' && playlist == null)
+                  AppIconButton(
+                    tooltip: 'Tạo playlist',
+                    onPressed: createPlaylist,
+                    icon: const Icon(LucideIcons.circlePlus),
+                  ),
+                if (playlist != null && playlist!['isOwner'] == true)
+                  playlistMenu(),
                 AppIconButton(
-                  tooltip: 'Tạo playlist',
-                  onPressed: createPlaylist,
-                  icon: const Icon(LucideIcons.circlePlus),
+                  tooltip: 'Làm mới',
+                  onPressed: load,
+                  icon: const Icon(LucideIcons.refreshCw),
                 ),
-              if (playlist != null && playlist!['isOwner'] == true)
-                playlistMenu(),
-              AppIconButton(
-                tooltip: 'Làm mới',
-                onPressed: load,
-                icon: const Icon(LucideIcons.refreshCw),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            playlist != null
-                ? '${songs.length} bài hát • ${playlist!['isPublic'] == true ? 'Công khai' : 'Riêng tư'}'
-                : section == 'Khám phá' && genre.isNotEmpty
-                ? '${songs.length} bài hát thể loại $genre'
-                : section == 'Khám phá'
-                ? 'Những giai điệu mới cho ngày của bạn'
-                : section == 'Tìm kiếm'
-                ? 'Tìm giai điệu bạn đang muốn nghe'
-                : 'Bộ sưu tập âm nhạc của bạn',
-            style: TextStyle(color: mutedColor),
-          ),
-          const SizedBox(height: 20),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              playlist != null
+                  ? '${songs.length} bài hát • ${playlist!['isPublic'] == true ? 'Công khai' : 'Riêng tư'}'
+                  : section == 'Khám phá' && genre.isNotEmpty
+                  ? '${songs.length} bài hát thể loại $genre'
+                  : section == 'Khám phá'
+                  ? 'Những giai điệu mới cho ngày của bạn'
+                  : section == 'Tìm kiếm'
+                  ? 'Tìm giai điệu bạn đang muốn nghe'
+                  : 'Bộ sưu tập âm nhạc của bạn',
+              style: TextStyle(color: mutedColor),
+            ),
+            const SizedBox(height: 20),
           ],
           if (section == 'Cá nhân') profile(),
           if (user == null &&
@@ -1145,9 +1044,8 @@ class _MusicHomeState extends State<MusicHome>
                   color: active ? accentColor.withValues(alpha: .1) : null,
                   border: Border(
                     bottom: BorderSide(
-                      color: Theme.of(
-                        context,
-                      ).dividerColor.withValues(alpha: .6),
+                      color: Theme.of(context).dividerColor
+                          .withValues(alpha: .6),
                     ),
                   ),
                 )
@@ -1156,7 +1054,8 @@ class _MusicHomeState extends State<MusicHome>
                   color: active
                       ? accentColor.withValues(alpha: .08)
                       : Theme.of(context).brightness == Brightness.dark
-                      ? Theme.of(context).colorScheme.surface.withValues(alpha: .65)
+                      ? Theme.of(context).colorScheme.surface
+                            .withValues(alpha: .65)
                       // Sáng: nền trang cũng trắng nên dòng bài hát phải xám
                       // nhạt mới nhìn thấy (giống AppPanel).
                       : Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -1174,7 +1073,9 @@ class _MusicHomeState extends State<MusicHome>
                     width: 34,
                     child: Text(
                       active ? '♫' : '${i + 1}'.padLeft(2, '0'),
-                      style: TextStyle(color: active ? accentColor : mutedColor),
+                      style: TextStyle(
+                        color: active ? accentColor : mutedColor,
+                      ),
                     ),
                   ),
                 cover(song, 48),
@@ -1214,9 +1115,7 @@ class _MusicHomeState extends State<MusicHome>
                     ),
                   ),
                 AppIconButton(
-                  tooltip: active && player.audio.playing
-                      ? 'Tạm dừng'
-                      : 'Phát',
+                  tooltip: active && player.audio.playing ? 'Tạm dừng' : 'Phát',
                   onPressed: () => guard(() async {
                     if (active) {
                       await player.toggle();
@@ -1586,7 +1485,6 @@ class _MusicHomeState extends State<MusicHome>
     search.dispose();
     player.removeListener(syncFeedWithPlayer);
     feedController.dispose();
-    backCtl.dispose();
     player.dispose();
     api.dio.close();
     super.dispose();
@@ -1629,4 +1527,3 @@ Widget musicTile({
     ),
   ),
 );
-

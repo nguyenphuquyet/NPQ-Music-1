@@ -17,7 +17,6 @@ extension _SongDetails on _MusicHomeState {
       detailBackSection = section;
       detailBackPlaylist = playlist;
     }
-    reversePage = false;
     debounce?.cancel();
     updateUI(() {
       detailQueue = List.of(source);
@@ -30,7 +29,6 @@ extension _SongDetails on _MusicHomeState {
   }
 
   void closeSong() {
-    reversePage = true;
     updateUI(() {
       section = detailBackSection;
       playlist = detailBackPlaylist;
@@ -137,25 +135,24 @@ extension _SongDetails on _MusicHomeState {
                 top: 0,
                 bottom: 8,
                 child: ClipRect(
-                child: Transform.scale(
-                  scale: 1.3,
-                  child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
-                    child: coverUrl.isEmpty
-                        ? ColoredBox(color: brand.withValues(alpha: .3))
-                        : Image.network(
-                            coverUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, e, s) =>
-                                ColoredBox(color: brand.withValues(alpha: .3)),
-                          ),
+                  child: Transform.scale(
+                    scale: 1.3,
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
+                      child: coverUrl.isEmpty
+                          ? ColoredBox(color: brand.withValues(alpha: .3))
+                          : Image.network(
+                              coverUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, e, s) => ColoredBox(
+                                color: brand.withValues(alpha: .3),
+                              ),
+                            ),
+                    ),
                   ),
                 ),
-                ),
               ),
-              ColoredBox(
-                color: pageColor.withValues(alpha: dark ? .45 : .3),
-              ),
+              ColoredBox(color: pageColor.withValues(alpha: dark ? .45 : .3)),
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -186,8 +183,11 @@ extension _SongDetails on _MusicHomeState {
       child: wide
           ? cover(song, 260, radius: 20)
           : LayoutBuilder(
-              builder: (_, bounds) =>
-                  cover(song, (bounds.maxWidth - 56).clamp(160, 300), radius: 20),
+              builder: (_, bounds) => cover(
+                song,
+                (bounds.maxWidth - 56).clamp(160, 300),
+                radius: 20,
+              ),
             ),
     );
 
@@ -347,7 +347,10 @@ extension _SongDetails on _MusicHomeState {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (!wide) ...[actions, const SizedBox(height: 16)] else
+              if (!wide) ...[
+                actions,
+                const SizedBox(height: 16),
+              ] else
                 const SizedBox(height: 16),
               stats,
               AppPanel(
@@ -464,7 +467,6 @@ extension _PlaylistNavigation on _MusicHomeState {
         await api.request('/api/playlists/${selected['id']}'),
       );
       if (!mounted || ticket != requestId) return;
-      reversePage = false;
       updateUI(() {
         playlist = detail;
         songs = (detail['songs'] as List)

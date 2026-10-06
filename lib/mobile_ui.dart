@@ -10,7 +10,7 @@ extension _MobileInterface on _MusicHomeState {
       ? 3
       : 2;
 
-  // ---- Điều hướng quay lại (app dùng state `section`, không dùng route) ----
+  // Keep app state in sync with Cupertino navigation.
   bool get canGoBack =>
       section == 'Chi tiết bài hát' ||
       section == 'Tìm kiếm' ||
@@ -26,124 +26,6 @@ extension _MobileInterface on _MusicHomeState {
       navigate('Khám phá');
     }
   }
-
-  // Có trang phía sau để hiện lúc kéo (chi tiết bài hát, chi tiết playlist).
-  bool get interactiveBack =>
-      (section == 'Chi tiết bài hát' && songDetail != null) ||
-      playlist != null;
-
-  // Dựng trang phía sau bằng cách tạm đổi state sang màn hình đích rồi khôi
-  // phục ngay (chỉ đọc state khi dựng widget, không setState).
-  Widget backUnderlay(bool wide) {
-    final s = section, pl = playlist, sd = songDetail;
-    try {
-      if (s == 'Chi tiết bài hát') {
-        section = detailBackSection;
-        playlist = detailBackPlaylist;
-      } else {
-        section = 'Playlist';
-        playlist = null;
-      }
-      songDetail = null;
-      return IgnorePointer(
-        child: ColoredBox(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: Column(
-            children: [
-              if (section == 'Tìm kiếm')
-                Padding(
-                  padding: EdgeInsets.only(top: glassTop),
-                  child: searchPanel(),
-                ),
-              Expanded(child: content(wide)),
-            ],
-          ),
-        ),
-      );
-    } finally {
-      section = s;
-      playlist = pl;
-      songDetail = sd;
-    }
-  }
-
-  // Vuốt từ mép trái sang phải để quay lại, bám theo ngón tay như iOS.
-  Widget edgeBackSwipe() {
-    var dx = 0.0;
-    var interactive = false;
-    var width = MediaQuery.sizeOf(context).width;
-    if (width > 480) width = 480;
-
-    Future<void> finish(bool commit) async {
-      if (commit) {
-        await backCtl.animateTo(
-          1,
-          duration: Duration(milliseconds: (240 * (1 - backCtl.value)).round() + 80),
-          curve: Curves.easeOutCubic,
-        );
-        if (!mounted) return;
-        // Trang đã trượt hẳn ra ngoài: chuyển state ngay, không chạy lại hiệu ứng.
-        skipSwitch = true;
-        backActive = false;
-        backCtl.value = 0;
-        goBack();
-        WidgetsBinding.instance.addPostFrameCallback((_) => skipSwitch = false);
-        updateUI(() {});
-      } else {
-        await backCtl.animateTo(
-          0,
-          duration: Duration(milliseconds: (240 * backCtl.value).round() + 80),
-          curve: Curves.easeOutCubic,
-        );
-        if (mounted) updateUI(() => backActive = false);
-      }
-    }
-
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragStart: (_) {
-        dx = 0;
-        interactive = interactiveBack;
-        if (interactive) {
-          backCtl.stop();
-          backCtl.value = 0;
-          updateUI(() => backActive = true);
-        }
-      },
-      onHorizontalDragUpdate: (d) {
-        dx += d.delta.dx;
-        if (interactive) {
-          backCtl.value = (backCtl.value + d.delta.dx / width).clamp(0.0, 1.0);
-        }
-      },
-      onHorizontalDragEnd: (d) {
-        final v = d.primaryVelocity ?? 0;
-        if (interactive) {
-          finish(v > 700 || (v > -700 && backCtl.value > .4));
-        } else if (dx > 60 || v > 500) {
-          goBack();
-        }
-      },
-      onHorizontalDragCancel: () {
-        if (interactive) finish(false);
-      },
-    );
-  }
-
-  Widget withBackSwipe(Widget child) => Stack(
-    fit: StackFit.expand,
-    children: [
-      child,
-      if (canGoBack)
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 24,
-          child: edgeBackSwipe(),
-        ),
-    ],
-  );
 
   Widget phoneScaffold() {
     // Inset thật của iOS (tai thỏ / status bar / home indicator). Không dùng
@@ -163,15 +45,12 @@ extension _MobileInterface on _MusicHomeState {
           constraints: const BoxConstraints(maxWidth: 480),
           child: ColoredBox(
             color: TDTheme.of(context).bgColorPage,
-            child: withBackSwipe(GlassScaffold(
+            child: GlassScaffold(
               top: Padding(
                 padding: EdgeInsets.only(top: safe.top),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    mobileHeader(),
-                    if (mobileTab == 2) libraryTabs(),
-                  ],
+                  children: [mobileHeader(), if (mobileTab == 2) libraryTabs()],
                 ),
               ),
               body: (t, b) {
@@ -231,7 +110,12 @@ extension _MobileInterface on _MusicHomeState {
                             size: 22,
                           ),
                           onTap: () => navigate(
-                            ['Khám phá', 'Dành cho bạn', 'Yêu thích', 'Cá nhân'][i],
+                            [
+                              'Khám phá',
+                              'Dành cho bạn',
+                              'Yêu thích',
+                              'Cá nhân',
+                            ][i],
                           ),
                         ),
                       ),
@@ -239,7 +123,7 @@ extension _MobileInterface on _MusicHomeState {
                   ],
                 ),
               ),
-            )),
+            ),
           ),
         ),
       ),
@@ -278,7 +162,9 @@ extension _MobileInterface on _MusicHomeState {
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     border: Border(
-                      right: BorderSide(color: Theme.of(context).colorScheme.outline),
+                      right: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -344,9 +230,9 @@ extension _MobileInterface on _MusicHomeState {
                                         section ==
                                             _MusicHomeState.destinations[i]
                                         ? Colors.white
-                                        : Theme.of(
-                                            context,
-                                          ).colorScheme.onSurface,
+                                        : Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
                                   ),
                                 ),
                               ],
@@ -455,7 +341,9 @@ extension _MobileInterface on _MusicHomeState {
           builder: (ctx) {
             final isDark = Theme.of(ctx).brightness == Brightness.dark;
             return AppIconButton(
-              tooltip: isDark ? 'Chuyển sang giao diện sáng' : 'Chuyển sang giao diện tối',
+              tooltip: isDark
+                  ? 'Chuyển sang giao diện sáng'
+                  : 'Chuyển sang giao diện tối',
               onPressed: widget.onTheme,
               icon: Icon(isDark ? LucideIcons.sun : LucideIcons.moon, size: 20),
             );

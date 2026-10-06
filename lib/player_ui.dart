@@ -355,15 +355,17 @@ extension _PlayerUI on _MusicHomeState {
 
   BoxDecoration _barDecoration(ColorScheme cs, {bool glass = false}) =>
       BoxDecoration(
-    color: glass ? Colors.transparent : cs.surface.withValues(alpha: .95),
-    border: glass ? null : Border(
-      top: BorderSide(
-        color: _dark
-            ? Colors.white.withValues(alpha: .05)
-            : Colors.black.withValues(alpha: .05),
-      ),
-    ),
-  );
+        color: glass ? Colors.transparent : cs.surface.withValues(alpha: .95),
+        border: glass
+            ? null
+            : Border(
+                top: BorderSide(
+                  color: _dark
+                      ? Colors.white.withValues(alpha: .05)
+                      : Colors.black.withValues(alpha: .05),
+                ),
+              ),
+      );
 
   Widget _songTexts(Json? song, Color ink, {double titleSize = 14}) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,416 +607,388 @@ extension _PlayerUI on _MusicHomeState {
   Future<void> nowPlaying() async {
     if (player.current == null) return;
     await Navigator.of(context).push<void>(
-      PageRouteBuilder<void>(
-        opaque: false,
-        transitionDuration: const Duration(milliseconds: 300),
-        reverseTransitionDuration: const Duration(milliseconds: 300),
-        pageBuilder: (ctx, a, b) => _nowPlayingView(ctx, a),
-        transitionsBuilder: (ctx, a, b, child) => FadeTransition(
-          opacity: CurvedAnimation(parent: a, curve: Curves.easeOut),
-          child: child,
-        ),
-      ),
+      CupertinoPageRoute<void>(builder: (ctx) => _nowPlayingView(ctx)),
     );
   }
 
-  Widget _nowPlayingView(BuildContext ctx, Animation<double> anim) =>
-      StatefulBuilder(
-        builder: (ctx, refresh) => ListenableBuilder(
-          listenable: player,
-          builder: (ctx, _) {
-            final song = player.current;
-            if (song == null) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (ctx.mounted && Navigator.canPop(ctx)) Navigator.pop(ctx);
-              });
-              return const SizedBox.shrink();
-            }
-            final theme = Theme.of(ctx);
-            final dark = theme.brightness == Brightness.dark;
-            final cs = theme.colorScheme;
-            final wide = MediaQuery.sizeOf(ctx).width >= 768;
-            final fg = dark ? Colors.white : const Color(0xFF171717);
-            final secondary = dark
-                ? Colors.white.withValues(alpha: .7)
-                : const Color(0xFF525252);
-            final tertiary = dark
-                ? Colors.white.withValues(alpha: .5)
-                : const Color(0xFF737373);
-            final soft = dark
-                ? Colors.white.withValues(alpha: .6)
-                : const Color(0xFF737373);
-            final chip = dark
-                ? Colors.white.withValues(alpha: .1)
-                : Colors.black.withValues(alpha: .05);
-            final box = dark
-                ? Colors.white.withValues(alpha: .05)
-                : Colors.black.withValues(alpha: .05);
-            final fav = favorites.contains(song['id']);
-            final url = api.media(song['coverUrl']);
-            final lyrics = song['lyrics']?.toString().trim() ?? '';
-            final gradient = DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: dark
-                      ? const [Color(0xFF0B1F4D), Colors.black]
-                      : const [Color(0xFFDCE7FF), Colors.white],
+  Widget _nowPlayingView(BuildContext ctx) => StatefulBuilder(
+    builder: (ctx, refresh) => ListenableBuilder(
+      listenable: player,
+      builder: (ctx, _) {
+        final song = player.current;
+        if (song == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ctx.mounted && Navigator.canPop(ctx)) Navigator.pop(ctx);
+          });
+          return const SizedBox.shrink();
+        }
+        final theme = Theme.of(ctx);
+        final dark = theme.brightness == Brightness.dark;
+        final cs = theme.colorScheme;
+        final wide = MediaQuery.sizeOf(ctx).width >= 768;
+        final fg = dark ? Colors.white : const Color(0xFF171717);
+        final secondary = dark
+            ? Colors.white.withValues(alpha: .7)
+            : const Color(0xFF525252);
+        final tertiary = dark
+            ? Colors.white.withValues(alpha: .5)
+            : const Color(0xFF737373);
+        final soft = dark
+            ? Colors.white.withValues(alpha: .6)
+            : const Color(0xFF737373);
+        final chip = dark
+            ? Colors.white.withValues(alpha: .1)
+            : Colors.black.withValues(alpha: .05);
+        final box = dark
+            ? Colors.white.withValues(alpha: .05)
+            : Colors.black.withValues(alpha: .05);
+        final fav = favorites.contains(song['id']);
+        final url = api.media(song['coverUrl']);
+        final lyrics = song['lyrics']?.toString().trim() ?? '';
+        final gradient = DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: dark
+                  ? const [Color(0xFF0B1F4D), Colors.black]
+                  : const [Color(0xFFDCE7FF), Colors.white],
+            ),
+          ),
+        );
+        final cover = Container(
+          width: wide ? 288 : 224,
+          height: wide ? 288 : 224,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: chip,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .25),
+                blurRadius: 50,
+                offset: const Offset(0, 25),
+              ),
+            ],
+          ),
+          child: url.isEmpty
+              ? Icon(LucideIcons.music2, size: 48, color: soft)
+              : Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) =>
+                      Icon(LucideIcons.music2, size: 48, color: soft),
+                ),
+        );
+        Widget circle(IconData i, double s, VoidCallback t) => GestureDetector(
+          onTap: t,
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: chip, shape: BoxShape.circle),
+            child: Icon(i, size: s, color: fg),
+          ),
+        );
+        final align = wide
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center;
+        final info = Column(
+          crossAxisAlignment: align,
+          children: [
+            Text(
+              'BÀI HÁT',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1,
+                color: tertiary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: () {
+                final list = List<Json>.of(player.queue);
+                final i = player.index;
+                Navigator.pop(ctx);
+                openSong(list, i);
+              },
+              child: Text(
+                song['title'] ?? '',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: wide ? TextAlign.left : TextAlign.center,
+                style: TextStyle(
+                  fontSize: wide ? 30 : 24,
+                  fontWeight: FontWeight.w700,
+                  height: 1.2,
+                  color: fg,
                 ),
               ),
-            );
-            final cover = Container(
-              width: wide ? 288 : 224,
-              height: wide ? 288 : 224,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: chip,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .25),
-                    blurRadius: 50,
-                    offset: const Offset(0, 25),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              song['artist'] ?? '',
+              style: TextStyle(fontSize: 16, color: secondary),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ctl(
+                  fav ? Icons.favorite : LucideIcons.heart,
+                  22,
+                  fav ? _rose500 : secondary,
+                  () async {
+                    await favorite(song);
+                    if (ctx.mounted) refresh(() {});
+                  },
+                  pad: 8,
+                ),
+                _ctl(LucideIcons.share2, 20, secondary, () {
+                  Clipboard.setData(
+                    ClipboardData(text: '${Api.baseUrl}/song/${song['id']}'),
+                  );
+                  message('Đã sao chép liên kết bài hát');
+                }, pad: 8),
+                _ctl(
+                  LucideIcons.listPlus,
+                  20,
+                  secondary,
+                  () => addToPlaylist(song),
+                  pad: 8,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 448),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: box,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  lyrics.isEmpty
+                      ? 'Lời bài hát sẽ sớm được cập nhật...'
+                      : lyrics,
+                  maxLines: 6,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14, color: soft),
+                ),
+              ),
+            ),
+          ],
+        );
+        Widget ctl(IconData i, double s, Color c, VoidCallback t) =>
+            _ctl(i, s, c, t, pad: 8);
+        final controls = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 672),
+          child: Column(
+            children: [
+              SeekBar(player: player, timeColor: tertiary, stacked: true),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ctl(
+                    LucideIcons.shuffle,
+                    20,
+                    player.shuffle ? cs.primary : soft,
+                    player.toggleShuffle,
+                  ),
+                  SizedBox(width: wide ? 20 : 12),
+                  ctl(Icons.skip_previous_rounded, 34, fg, player.previous),
+                  SizedBox(width: wide ? 20 : 12),
+                  GestureDetector(
+                    onTap: () => guard(player.toggle),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: .25),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        player.audio.playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        size: 34,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: wide ? 20 : 12),
+                  ctl(Icons.skip_next_rounded, 34, fg, player.next),
+                  SizedBox(width: wide ? 20 : 12),
+                  ctl(
+                    player.repeat == 2
+                        ? LucideIcons.repeat1
+                        : LucideIcons.repeat,
+                    20,
+                    player.repeat > 0 ? cs.primary : soft,
+                    player.cycleRepeat,
                   ),
                 ],
               ),
-              child: url.isEmpty
-                  ? Icon(LucideIcons.music2, size: 48, color: soft)
-                  : Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          Icon(LucideIcons.music2, size: 48, color: soft),
-                    ),
-            );
-            Widget circle(IconData i, double s, VoidCallback t) =>
-                GestureDetector(
-                  onTap: t,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(color: chip, shape: BoxShape.circle),
-                    child: Icon(i, size: s, color: fg),
-                  ),
-                );
-            final align = wide
-                ? CrossAxisAlignment.start
-                : CrossAxisAlignment.center;
-            final info = Column(
-              crossAxisAlignment: align,
-              children: [
-                Text(
-                  'BÀI HÁT',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1,
-                    color: tertiary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                GestureDetector(
-                  onTap: () {
-                    final list = List<Json>.of(player.queue);
-                    final i = player.index;
-                    Navigator.pop(ctx);
-                    openSong(list, i);
-                  },
-                  child: Text(
-                    song['title'] ?? '',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: wide ? TextAlign.left : TextAlign.center,
-                    style: TextStyle(
-                      fontSize: wide ? 30 : 24,
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
-                      color: fg,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  song['artist'] ?? '',
-                  style: TextStyle(fontSize: 16, color: secondary),
-                ),
+              if (wide) ...[
                 const SizedBox(height: 16),
                 Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _ctl(
-                      fav ? Icons.favorite : LucideIcons.heart,
-                      22,
-                      fav ? _rose500 : secondary,
-                      () async {
-                        await favorite(song);
-                        if (ctx.mounted) refresh(() {});
-                      },
-                      pad: 8,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(
+                          color: dark
+                              ? Colors.white.withValues(alpha: .2)
+                              : Colors.black.withValues(alpha: .15),
+                        ),
+                      ),
+                      child: Text(
+                        '128 kbps',
+                        style: TextStyle(fontSize: 12, color: soft),
+                      ),
                     ),
-                    _ctl(LucideIcons.share2, 20, secondary, () {
-                      Clipboard.setData(
-                        ClipboardData(text: '${Api.baseUrl}/song/${song['id']}'),
-                      );
-                      message('Đã sao chép liên kết bài hát');
-                    }, pad: 8),
-                    _ctl(
-                      LucideIcons.listPlus,
-                      20,
-                      secondary,
-                      () => addToPlaylist(song),
-                      pad: 8,
-                    ),
+                    const SizedBox(width: 16),
+                    VolumeControl(player: player, color: soft),
+                    const SizedBox(width: 16),
+                    _ctl(LucideIcons.listMusic, 18, soft, queueSheet),
                   ],
                 ),
-                const SizedBox(height: 24),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 448),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+              ],
+            ],
+          ),
+        );
+
+        return DefaultTextStyle(
+          style: TextStyle(
+            fontSize: 14,
+            color: fg,
+            decoration: TextDecoration.none,
+          ),
+          child: Focus(
+            autofocus: true,
+            onKeyEvent: (_, e) {
+              if (e is KeyDownEvent &&
+                  e.logicalKey == LogicalKeyboardKey.escape) {
+                Navigator.pop(ctx);
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Nền kính mờ: ảnh bìa + lớp blur + lớp phủ theo theme.
+                if (url.isEmpty)
+                  gradient
+                else
+                  Transform.scale(
+                    scale: 1.1,
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => gradient,
                     ),
-                    decoration: BoxDecoration(
-                      color: box,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      lyrics.isEmpty
-                          ? 'Lời bài hát sẽ sớm được cập nhật...'
-                          : lyrics,
-                      maxLines: 6,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 14, color: soft),
+                  ),
+                BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                  child: ColoredBox(
+                    color: dark
+                        ? Colors.black.withValues(alpha: .45)
+                        : Colors.white.withValues(alpha: .55),
+                  ),
+                ),
+                SafeArea(
+                  child: LayoutBuilder(
+                    builder: (_, bounds) => SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: wide ? 40 : 20,
+                        vertical: wide ? 32 : 20,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: bounds.maxHeight - (wide ? 64 : 40),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: wide
+                                      ? MainAxisAlignment.end
+                                      : MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    if (!wide)
+                                      circle(
+                                        LucideIcons.listMusic,
+                                        18,
+                                        queueSheet,
+                                      ),
+                                    circle(
+                                      LucideIcons.chevronDown,
+                                      20,
+                                      () => Navigator.pop(ctx),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: wide ? 40 : 16),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 1024,
+                                  ),
+                                  child: wide
+                                      ? Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            cover,
+                                            const SizedBox(width: 56),
+                                            Expanded(child: info),
+                                          ],
+                                        )
+                                      : Column(
+                                          children: [
+                                            cover,
+                                            const SizedBox(height: 32),
+                                            info,
+                                          ],
+                                        ),
+                                ),
+                              ],
+                            ),
+                            Padding(
+                              padding: EdgeInsets.only(top: wide ? 40 : 32),
+                              child: controls,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ],
-            );
-            Widget ctl(IconData i, double s, Color c, VoidCallback t) =>
-                _ctl(i, s, c, t, pad: 8);
-            final controls = ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 672),
-              child: Column(
-                children: [
-                  SeekBar(player: player, timeColor: tertiary, stacked: true),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ctl(
-                        LucideIcons.shuffle,
-                        20,
-                        player.shuffle ? cs.primary : soft,
-                        player.toggleShuffle,
-                      ),
-                      SizedBox(width: wide ? 20 : 12),
-                      ctl(
-                        Icons.skip_previous_rounded,
-                        34,
-                        fg,
-                        player.previous,
-                      ),
-                      SizedBox(width: wide ? 20 : 12),
-                      GestureDetector(
-                        onTap: () => guard(player.toggle),
-                        child: Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: .25),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            player.audio.playing
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            size: 34,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: wide ? 20 : 12),
-                      ctl(Icons.skip_next_rounded, 34, fg, player.next),
-                      SizedBox(width: wide ? 20 : 12),
-                      ctl(
-                        player.repeat == 2
-                            ? LucideIcons.repeat1
-                            : LucideIcons.repeat,
-                        20,
-                        player.repeat > 0 ? cs.primary : soft,
-                        player.cycleRepeat,
-                      ),
-                    ],
-                  ),
-                  if (wide) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(
-                              color: dark
-                                  ? Colors.white.withValues(alpha: .2)
-                                  : Colors.black.withValues(alpha: .15),
-                            ),
-                          ),
-                          child: Text(
-                            '128 kbps',
-                            style: TextStyle(fontSize: 12, color: soft),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        VolumeControl(player: player, color: soft),
-                        const SizedBox(width: 16),
-                        _ctl(LucideIcons.listMusic, 18, soft, queueSheet),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            );
-
-            return DefaultTextStyle(
-              style: TextStyle(
-                fontSize: 14,
-                color: fg,
-                decoration: TextDecoration.none,
-              ),
-              child: Focus(
-                autofocus: true,
-                onKeyEvent: (_, e) {
-                  if (e is KeyDownEvent &&
-                      e.logicalKey == LogicalKeyboardKey.escape) {
-                    Navigator.pop(ctx);
-                    return KeyEventResult.handled;
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Nền kính mờ: ảnh bìa + lớp blur + lớp phủ theo theme.
-                    if (url.isEmpty)
-                      gradient
-                    else
-                      Transform.scale(
-                        scale: 1.1,
-                        child: Image.network(
-                          url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => gradient,
-                        ),
-                      ),
-                    BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                      child: ColoredBox(
-                        color: dark
-                            ? Colors.black.withValues(alpha: .45)
-                            : Colors.white.withValues(alpha: .55),
-                      ),
-                    ),
-                    SafeArea(
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, .03),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(parent: anim, curve: Curves.easeOut),
-                        ),
-                        child: LayoutBuilder(
-                          builder: (_, bounds) => SingleChildScrollView(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: wide ? 40 : 20,
-                              vertical: wide ? 32 : 20,
-                            ),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                minHeight:
-                                    bounds.maxHeight - (wide ? 64 : 40),
-                              ),
-                              child: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: wide
-                                            ? MainAxisAlignment.end
-                                            : MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          if (!wide)
-                                            circle(
-                                              LucideIcons.listMusic,
-                                              18,
-                                              queueSheet,
-                                            ),
-                                          circle(
-                                            LucideIcons.chevronDown,
-                                            20,
-                                            () => Navigator.pop(ctx),
-                                          ),
-                                        ],
-                                      ),
-                                      SizedBox(height: wide ? 40 : 16),
-                                      ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          maxWidth: 1024,
-                                        ),
-                                        child: wide
-                                            ? Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  cover,
-                                                  const SizedBox(width: 56),
-                                                  Expanded(child: info),
-                                                ],
-                                              )
-                                            : Column(
-                                                children: [
-                                                  cover,
-                                                  const SizedBox(height: 32),
-                                                  info,
-                                                ],
-                                              ),
-                                      ),
-                                    ],
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      top: wide ? 40 : 32,
-                                    ),
-                                    child: controls,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      );
+            ),
+          ),
+        );
+      },
+    ),
+  );
 }

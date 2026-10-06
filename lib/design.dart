@@ -397,20 +397,11 @@ Future<T?> appSheet<T>({
   bool isScrollControlled = false,
   bool useSafeArea = false,
   BoxConstraints? constraints,
-}) => showGeneralDialog<T>(
+}) => showCupertinoModalPopup<T>(
   context: context,
   barrierDismissible: true,
-  barrierLabel: 'Đóng',
   barrierColor: Colors.black.withValues(alpha: .45),
-  transitionDuration: const Duration(milliseconds: 260),
-  transitionBuilder: (ctx, a, b, child) => SlideTransition(
-    position: Tween(
-      begin: const Offset(0, 1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
-    child: child,
-  ),
-  pageBuilder: (ctx, a, b) {
+  builder: (ctx) {
     final cs = Theme.of(ctx).colorScheme;
     return Align(
       alignment: Alignment.bottomCenter,
