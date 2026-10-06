@@ -44,16 +44,22 @@ extension _MobileInterface on _MusicHomeState {
   // Dựng trang phía sau bằng cách tạm đổi state sang màn hình đích rồi khôi
   // phục ngay (chỉ đọc state khi dựng widget, không setState).
   Widget backUnderlay(bool wide) {
-    final s = section, pl = playlist, sd = songDetail;
+    final s = section, pl = playlist, sd = songDetail, dq = detailQueue;
     try {
-      if (s == 'Chi tiết bài hát') {
-        section = detailBackSection;
-        playlist = detailBackPlaylist;
+      if (s == 'Chi tiết bài hát' && detailStack.isNotEmpty) {
+        // Phía sau là trang chi tiết bài trước đó.
+        songDetail = detailStack.last['detail'] as Json;
+        detailQueue = detailStack.last['queue'] as List<Json>;
       } else {
-        section = 'Playlist';
-        playlist = null;
+        if (s == 'Chi tiết bài hát') {
+          section = detailBackSection;
+          playlist = detailBackPlaylist;
+        } else {
+          section = 'Playlist';
+          playlist = null;
+        }
+        songDetail = null;
       }
-      songDetail = null;
       return IgnorePointer(
         child: ColoredBox(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -73,6 +79,7 @@ extension _MobileInterface on _MusicHomeState {
       section = s;
       playlist = pl;
       songDetail = sd;
+      detailQueue = dq;
     }
   }
 

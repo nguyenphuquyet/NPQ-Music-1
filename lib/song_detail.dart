@@ -16,6 +16,10 @@ extension _SongDetails on _MusicHomeState {
     if (section != 'Chi tiết bài hát') {
       detailBackSection = section;
       detailBackPlaylist = playlist;
+      detailStack.clear();
+    } else if (songDetail != null && songDetail!['id'] != detail['id']) {
+      // Đang ở chi tiết bài khác: nhớ lại để Back quay về đúng bài này.
+      detailStack.add({'detail': songDetail!, 'queue': List<Json>.of(detailQueue)});
     }
     reversePage = false;
     debounce?.cancel();
@@ -30,6 +34,17 @@ extension _SongDetails on _MusicHomeState {
   }
 
   void closeSong() {
+    // Còn trang chi tiết trước đó: quay lại từng trang một.
+    if (detailStack.isNotEmpty) {
+      final prev = detailStack.removeLast();
+      reversePage = true;
+      updateUI(() {
+        songDetail = prev['detail'] as Json;
+        detailQueue = prev['queue'] as List<Json>;
+      });
+      load(silent: true);
+      return;
+    }
     reversePage = true;
     updateUI(() {
       section = detailBackSection;

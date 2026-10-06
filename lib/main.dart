@@ -177,6 +177,9 @@ class _MusicHomeState extends State<MusicHome>
   // Lịch sử các tab đã đi qua (để nút Back quay lại lần lượt) và vị trí cuộn
   // của từng trang (để quay lại là về đúng chỗ đang xem, không nhảy lên đầu).
   final navStack = <String>[];
+  // Chồng các trang chi tiết bài hát đã mở nối tiếp (chi tiết -> chi tiết ...)
+  // để Back quay lại từng trang một.
+  final detailStack = <Map<String, dynamic>>[];
   final scrollOffsets = <String, double>{};
   static const cacheable = [
     'Khám phá',
@@ -439,6 +442,7 @@ class _MusicHomeState extends State<MusicHome>
       );
       Future.delayed(const Duration(seconds: 1), old.dispose);
     }
+    detailStack.clear();
     setState(() {
       section = value;
       playlist = null;
