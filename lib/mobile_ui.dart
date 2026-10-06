@@ -154,7 +154,7 @@ extension _MobileInterface on _MusicHomeState {
     // iPhone: home indicator nằm sát mép dưới nên không cần chừa trọn 34pt,
     // bớt đi để tab bar hạ thấp xuống gần home bar hơn.
     final tabBottom = defaultTargetPlatform == TargetPlatform.iOS
-        ? (safe.bottom - 18).clamp(0.0, 40.0)
+        ? (safe.bottom - 8).clamp(0.0, 40.0)
         : safe.bottom;
     return ColoredBox(
       color: Theme.of(context).colorScheme.surface,
