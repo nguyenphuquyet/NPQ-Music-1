@@ -2,14 +2,7 @@ import 'dart:async';
 import 'dart:ui' show ImageFilter, FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
-    show
-        Clipboard,
-        ClipboardData,
-        KeyDownEvent,
-        LogicalKeyboardKey,
-        SystemChrome,
-        SystemUiMode,
-        SystemUiOverlayStyle;
+    show Clipboard, ClipboardData, KeyDownEvent, LogicalKeyboardKey;
 import 'package:flutter/cupertino.dart'
     show
         CupertinoPageRoute,
@@ -37,15 +30,8 @@ Future<void> main() async {
   await initApiStorage();
   // Phát nền + điều khiển ở Control Center / màn hình khoá.
   await initAudioService();
-  // Android: vẽ app xuyên qua status bar / thanh điều hướng (nền trong suốt).
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  // Đọc chế độ sáng/tối đã lưu từ lần trước.
-  var savedDark = false;
-  savedDark = (await loadSetting(_darkPrefKey)) == '1';
-  runApp(MusicApp(initialDark: savedDark));
+  runApp(const MusicApp());
 }
-
-const _darkPrefKey = 'dark_mode';
 
 const blue = Color(0xFF0052D9);
 // Màu động theo theme sáng/tối (được cập nhật trong MusicApp.build).
@@ -54,20 +40,13 @@ Color mutedColor = const Color(0xFF69768C);
 Color dangerColor = const Color(0xFFD54941);
 
 class MusicApp extends StatefulWidget {
-  final bool initialDark;
-  const MusicApp({super.key, this.initialDark = false});
+  const MusicApp({super.key});
   @override
   State<MusicApp> createState() => _MusicAppState();
 }
 
 class _MusicAppState extends State<MusicApp> {
-  late bool dark = widget.initialDark;
-
-  Future<void> toggleTheme() async {
-    setState(() => dark = !dark);
-    await saveSetting(_darkPrefKey, dark ? '1' : '0');
-  }
-
+  bool dark = false;
   @override
   Widget build(BuildContext context) {
     accentColor = dark ? const Color(0xFF83ADFF) : blue;
@@ -88,32 +67,18 @@ class _MusicAppState extends State<MusicApp> {
       fontSize: 14,
       color: dark ? const Color(0xFFF1F3F9) : const Color(0xFF17243D),
     ),
-    builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-      // Status bar + thanh điều hướng trong suốt, icon đổi màu theo theme.
-      value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarDividerColor: Colors.transparent,
-        systemNavigationBarContrastEnforced: false,
-        systemStatusBarContrastEnforced: false,
-        statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-        systemNavigationBarIconBrightness:
-            dark ? Brightness.light : Brightness.dark,
-        statusBarBrightness: dark ? Brightness.dark : Brightness.light,
-      ),
-      child: Theme(
-        data: musicTheme(dark),
-        child: Material(
-          type: MaterialType.transparency,
-          child: DefaultTextStyle(
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              decoration: TextDecoration.none,
-              color: dark ? const Color(0xFFEEF3FA) : const Color(0xFF17243D),
-            ),
-            child: child!,
+    builder: (context, child) => Theme(
+      data: musicTheme(dark),
+      child: Material(
+        type: MaterialType.transparency,
+        child: DefaultTextStyle(
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            decoration: TextDecoration.none,
+            color: dark ? const Color(0xFFEEF3FA) : const Color(0xFF17243D),
           ),
+          child: child!,
         ),
       ),
     ),
@@ -122,7 +87,7 @@ class _MusicAppState extends State<MusicApp> {
       pageBuilder: (context, animation, secondary) => builder(context),
     ),
     home: MusicHome(
-      onTheme: toggleTheme,
+      onTheme: () => setState(() => dark = !dark),
     ),
   );
 }
@@ -1143,13 +1108,9 @@ class _MusicHomeState extends State<MusicHome>
                   borderRadius: BorderRadius.circular(12),
                   color: active
                       ? accentColor.withValues(alpha: .08)
-                      : Theme.of(context).brightness == Brightness.dark
-                      // Tối: surface sáng hơn nền trang.
-                      ? Theme.of(
+                      : Theme.of(
                           context,
-                        ).colorScheme.surface.withValues(alpha: .65)
-                      // Sáng: nền trang cũng trắng nên dùng xám nhạt mới thấy thẻ.
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
+                        ).colorScheme.surface.withValues(alpha: .65),
                 ),
           child: musicTile(
             contentPadding: EdgeInsets.symmetric(
