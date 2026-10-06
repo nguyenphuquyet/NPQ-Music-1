@@ -14,7 +14,7 @@ import 'package:flutter/services.dart'
         SystemUiMode,
         SystemUiOverlayStyle;
 import 'package:flutter/cupertino.dart'
-    show CupertinoPageRoute, DefaultCupertinoLocalizations, showCupertinoModalPopup;
+    show CupertinoPageRoute, DefaultCupertinoLocalizations;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:tdesign_flutter/tdesign_flutter.dart';
 import 'package:dio/dio.dart';
