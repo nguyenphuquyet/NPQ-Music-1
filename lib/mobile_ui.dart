@@ -101,7 +101,10 @@ extension _MobileInterface on _MusicHomeState {
         backActive = false;
         backCtl.value = 0;
         goBack();
-        WidgetsBinding.instance.addPostFrameCallback((_) => skipSwitch = false);
+        // Giữ cờ đủ lâu để trang cũ của AnimatedSwitcher (500ms) biến mất hẳn.
+        Future<void>.delayed(const Duration(milliseconds: 550), () {
+          if (mounted) skipSwitch = false;
+        });
         updateUI(() {});
       } else {
         await backCtl.animateTo(

@@ -819,7 +819,11 @@ class _MusicHomeState extends State<MusicHome>
         // Đi tới: trang mới nằm trên. Quay lại: trang đang rời đi nằm trên.
         layoutBuilder: (current, previous) => Stack(
           fit: StackFit.expand,
-          children: reversePage
+          // Vừa vuốt xong: trang cũ đã trượt ra khỏi màn hình rồi, bỏ hẳn nó
+          // (không để AnimatedSwitcher chạy lại 500ms trượt-ra lần nữa).
+          children: skipSwitch
+              ? [?current]
+              : reversePage
               ? [?current, ...previous]
               : [...previous, ?current],
         ),
