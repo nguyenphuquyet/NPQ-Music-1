@@ -607,11 +607,23 @@ extension _PlayerUI on _MusicHomeState {
   Future<void> nowPlaying() async {
     if (player.current == null) return;
     await Navigator.of(context).push<void>(
-      CupertinoPageRoute<void>(builder: (ctx) => _nowPlayingView(ctx)),
+      PageRouteBuilder<void>(
+        opaque: false,
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (ctx, a, b) => _nowPlayingView(ctx, a),
+        transitionsBuilder: (ctx, a, b, child) => FadeTransition(
+          opacity: CurvedAnimation(parent: a, curve: Curves.easeOut),
+          child: child,
+        ),
+      ),
     );
   }
 
-  Widget _nowPlayingView(BuildContext ctx) => StatefulBuilder(
+  Widget _nowPlayingView(
+    BuildContext ctx,
+    Animation<double> anim,
+  ) => StatefulBuilder(
     builder: (ctx, refresh) => ListenableBuilder(
       listenable: player,
       builder: (ctx, _) {
@@ -916,69 +928,78 @@ extension _PlayerUI on _MusicHomeState {
                   ),
                 ),
                 SafeArea(
-                  child: LayoutBuilder(
-                    builder: (_, bounds) => SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: wide ? 40 : 20,
-                        vertical: wide ? 32 : 20,
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: bounds.maxHeight - (wide ? 64 : 40),
+                  child: SlideTransition(
+                    position:
+                        Tween<Offset>(
+                          begin: const Offset(0, .03),
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(parent: anim, curve: Curves.easeOut),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: wide
-                                      ? MainAxisAlignment.end
-                                      : MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    if (!wide)
-                                      circle(
-                                        LucideIcons.listMusic,
-                                        18,
-                                        queueSheet,
-                                      ),
-                                    circle(
-                                      LucideIcons.chevronDown,
-                                      20,
-                                      () => Navigator.pop(ctx),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: wide ? 40 : 16),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 1024,
-                                  ),
-                                  child: wide
-                                      ? Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            cover,
-                                            const SizedBox(width: 56),
-                                            Expanded(child: info),
-                                          ],
-                                        )
-                                      : Column(
-                                          children: [
-                                            cover,
-                                            const SizedBox(height: 32),
-                                            info,
-                                          ],
+                    child: LayoutBuilder(
+                      builder: (_, bounds) => SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: wide ? 40 : 20,
+                          vertical: wide ? 32 : 20,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: bounds.maxHeight - (wide ? 64 : 40),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: wide
+                                        ? MainAxisAlignment.end
+                                        : MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      if (!wide)
+                                        circle(
+                                          LucideIcons.listMusic,
+                                          18,
+                                          queueSheet,
                                         ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: EdgeInsets.only(top: wide ? 40 : 32),
-                              child: controls,
-                            ),
-                          ],
+                                      circle(
+                                        LucideIcons.chevronDown,
+                                        20,
+                                        () => Navigator.pop(ctx),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: wide ? 40 : 16),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 1024,
+                                    ),
+                                    child: wide
+                                        ? Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              cover,
+                                              const SizedBox(width: 56),
+                                              Expanded(child: info),
+                                            ],
+                                          )
+                                        : Column(
+                                            children: [
+                                              cover,
+                                              const SizedBox(height: 32),
+                                              info,
+                                            ],
+                                          ),
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(top: wide ? 40 : 32),
+                                child: controls,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
