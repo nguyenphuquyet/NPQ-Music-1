@@ -298,26 +298,6 @@ class AppProgress extends StatelessWidget {
   );
 }
 
-/// Truyền animation mở/đóng của popup xuống [GlassSurface].
-///
-/// Lý do: nếu bọc popup bằng FadeTransition thì Flutter vẽ cả cây vào một lớp
-/// offscreen (saveLayer) khi opacity < 1. BackdropFilter nằm trong lớp đó chỉ
-/// thấy lớp trong suốt phía sau nên KHÔNG làm mờ được nền thật, tới khi hiệu
-/// ứng xong (opacity = 1) mới "bật" blur. Vì vậy popup không fade ở ngoài, mà
-/// để GlassSurface tự tăng dần độ mờ / màu kính / bóng / nội dung theo animation.
-class GlassAnimation extends InheritedWidget {
-  final Animation<double> animation;
-  const GlassAnimation({
-    super.key,
-    required this.animation,
-    required super.child,
-  });
-  static Animation<double>? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<GlassAnimation>()?.animation;
-  @override
-  bool updateShouldNotify(GlassAnimation old) => animation != old.animation;
-}
-
 /// Nền kính mờ trong suốt cho popup: làm mờ nội dung phía sau + phủ màu mờ.
 class GlassSurface extends StatelessWidget {
   final Widget child;
@@ -334,18 +314,17 @@ class GlassSurface extends StatelessWidget {
     this.shadowBlur = 36,
     this.shadowOffset = const Offset(0, 14),
   });
-
-  Widget _build(BuildContext context, double t) {
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final shape = BorderRadius.circular(radius);
-    final sigma = (24 * t).clamp(0.001, 24.0);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: shape,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: shadowAlpha * t),
+            color: Colors.black.withValues(alpha: shadowAlpha),
             blurRadius: shadowBlur,
             offset: shadowOffset,
           ),
@@ -354,33 +333,22 @@ class GlassSurface extends StatelessWidget {
       child: ClipRRect(
         borderRadius: shape,
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: cs.surface.withValues(alpha: (dark ? .7 : .78) * t),
+              color: cs.surface.withValues(alpha: dark ? .7 : .78),
               borderRadius: shape,
               border: Border.all(
                 color: dark
-                    ? Colors.white.withValues(alpha: .1 * t)
-                    : Colors.white.withValues(alpha: .7 * t),
+                    ? Colors.white.withValues(alpha: .1)
+                    : Colors.white.withValues(alpha: .7),
               ),
             ),
-            // Opacity nằm BÊN TRONG BackdropFilter nên không phá hiệu ứng blur.
-            child: t >= 1 ? child : Opacity(opacity: t, child: child),
+            child: child,
           ),
         ),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final anim = GlassAnimation.maybeOf(context);
-    if (anim == null) return _build(context, 1);
-    return AnimatedBuilder(
-      animation: anim,
-      builder: (ctx, _) => _build(ctx, anim.value.clamp(0.0, 1.0)),
     );
   }
 }
@@ -400,9 +368,8 @@ Future<T?> appDialog<T>({
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeIn,
     );
-    // Không dùng FadeTransition: nó làm BackdropFilter mất blur khi đang mở.
-    return GlassAnimation(
-      animation: c,
+    return FadeTransition(
+      opacity: c,
       child: ScaleTransition(
         scale: Tween<double>(begin: .92, end: 1).animate(c),
         child: child,
@@ -530,8 +497,8 @@ Future<T?> appPopover<T>({
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeIn,
       );
-      return GlassAnimation(
-        animation: c,
+      return FadeTransition(
+        opacity: c,
         child: ScaleTransition(
           alignment: opensUp ? Alignment.bottomRight : Alignment.topRight,
           scale: Tween<double>(begin: .88, end: 1).animate(c),

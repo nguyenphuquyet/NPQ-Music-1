@@ -15,24 +15,15 @@ extension _MobileInterface on _MusicHomeState {
       section == 'Chi tiết bài hát' ||
       section == 'Tìm kiếm' ||
       playlist != null ||
-      navStack.isNotEmpty ||
       section != 'Khám phá';
 
   void goBack() {
     if (section == 'Chi tiết bài hát') {
       closeSong();
     } else if (playlist != null) {
-      navigate('Playlist', back: true);
-    } else {
-      // Quay lại đúng trang trước đó (bỏ qua các mục trùng với trang hiện tại).
-      while (navStack.isNotEmpty && navStack.last == section) {
-        navStack.removeLast();
-      }
-      if (navStack.isNotEmpty) {
-        navigate(navStack.removeLast(), back: true);
-      } else if (section != 'Khám phá') {
-        navigate('Khám phá', back: true);
-      }
+      navigate('Playlist');
+    } else if (section != 'Khám phá') {
+      navigate('Khám phá');
     }
   }
 
@@ -44,22 +35,16 @@ extension _MobileInterface on _MusicHomeState {
   // Dựng trang phía sau bằng cách tạm đổi state sang màn hình đích rồi khôi
   // phục ngay (chỉ đọc state khi dựng widget, không setState).
   Widget backUnderlay(bool wide) {
-    final s = section, pl = playlist, sd = songDetail, dq = detailQueue;
+    final s = section, pl = playlist, sd = songDetail;
     try {
-      if (s == 'Chi tiết bài hát' && detailStack.isNotEmpty) {
-        // Phía sau là trang chi tiết bài trước đó.
-        songDetail = detailStack.last['detail'] as Json;
-        detailQueue = detailStack.last['queue'] as List<Json>;
+      if (s == 'Chi tiết bài hát') {
+        section = detailBackSection;
+        playlist = detailBackPlaylist;
       } else {
-        if (s == 'Chi tiết bài hát') {
-          section = detailBackSection;
-          playlist = detailBackPlaylist;
-        } else {
-          section = 'Playlist';
-          playlist = null;
-        }
-        songDetail = null;
+        section = 'Playlist';
+        playlist = null;
       }
+      songDetail = null;
       return IgnorePointer(
         child: ColoredBox(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -79,12 +64,13 @@ extension _MobileInterface on _MusicHomeState {
       section = s;
       playlist = pl;
       songDetail = sd;
-      detailQueue = dq;
     }
   }
 
   // Vuốt từ mép trái sang phải để quay lại, bám theo ngón tay như iOS.
   Widget edgeBackSwipe() {
+    var dx = 0.0;
+    var interactive = false;
     var width = MediaQuery.sizeOf(context).width;
     if (width > 480) width = 480;
 
@@ -101,10 +87,7 @@ extension _MobileInterface on _MusicHomeState {
         backActive = false;
         backCtl.value = 0;
         goBack();
-        // Giữ cờ đủ lâu để trang cũ của AnimatedSwitcher (500ms) biến mất hẳn.
-        Future<void>.delayed(const Duration(milliseconds: 550), () {
-          if (mounted) skipSwitch = false;
-        });
+        WidgetsBinding.instance.addPostFrameCallback((_) => skipSwitch = false);
         updateUI(() {});
       } else {
         await backCtl.animateTo(
@@ -119,29 +102,30 @@ extension _MobileInterface on _MusicHomeState {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onHorizontalDragStart: (_) {
-        backDx = 0;
-        backInteractive = interactiveBack;
-        // Luôn dọn trạng thái kéo cũ (kể cả khi trang này không kéo được).
-        backCtl.stop();
-        backCtl.value = 0;
-        updateUI(() => backActive = backInteractive);
+        dx = 0;
+        interactive = interactiveBack;
+        if (interactive) {
+          backCtl.stop();
+          backCtl.value = 0;
+          updateUI(() => backActive = true);
+        }
       },
       onHorizontalDragUpdate: (d) {
-        backDx += d.delta.dx;
-        if (backInteractive) {
+        dx += d.delta.dx;
+        if (interactive) {
           backCtl.value = (backCtl.value + d.delta.dx / width).clamp(0.0, 1.0);
         }
       },
       onHorizontalDragEnd: (d) {
         final v = d.primaryVelocity ?? 0;
-        if (backInteractive) {
+        if (interactive) {
           finish(v > 700 || (v > -700 && backCtl.value > .4));
-        } else if (backDx > 60 || v > 500) {
+        } else if (dx > 60 || v > 500) {
           goBack();
         }
       },
       onHorizontalDragCancel: () {
-        if (backInteractive) finish(false);
+        if (interactive) finish(false);
       },
     );
   }
@@ -441,7 +425,7 @@ extension _MobileInterface on _MusicHomeState {
               tooltip: 'Quay lại',
               onPressed: section == 'Chi tiết bài hát'
                   ? closeSong
-                  : goBack,
+                  : () => navigate('Khám phá'),
             ),
           )
         else

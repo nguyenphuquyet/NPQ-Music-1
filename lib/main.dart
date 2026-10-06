@@ -171,20 +171,9 @@ class _MusicHomeState extends State<MusicHome>
     duration: const Duration(milliseconds: 320),
   );
   bool backActive = false, skipSwitch = false;
-  // Trạng thái cú vuốt đang diễn ra. PHẢI nằm trong State (không phải biến
-  // cục bộ trong build) vì widget vuốt được dựng lại giữa chừng khi setState.
-  double backDx = 0;
-  bool backInteractive = false;
   // Bộ nhớ đệm theo tab: quay lại tab/trang cũ hiện ngay, dữ liệu mới được
   // tải ngầm rồi cập nhật sau (không hiện loading, không nhảy nội dung).
   final snapshots = <String, Map<String, dynamic>>{};
-  // Lịch sử các tab đã đi qua (để nút Back quay lại lần lượt) và vị trí cuộn
-  // của từng trang (để quay lại là về đúng chỗ đang xem, không nhảy lên đầu).
-  final navStack = <String>[];
-  // Chồng các trang chi tiết bài hát đã mở nối tiếp (chi tiết -> chi tiết ...)
-  // để Back quay lại từng trang một.
-  final detailStack = <Map<String, dynamic>>[];
-  final scrollOffsets = <String, double>{};
   static const cacheable = [
     'Khám phá',
     'Yêu thích',
@@ -404,22 +393,7 @@ class _MusicHomeState extends State<MusicHome>
     }
   }
 
-  void navigate(String value, {bool back = false}) {
-    // Đổi trang bằng cách khác (nút Quay lại, tab...) thì bỏ mọi trạng thái
-    // kéo dở, tránh trang nền bị kẹt ở mép trái.
-    if (backActive || backCtl.value != 0) {
-      backCtl.stop();
-      backCtl.value = 0;
-      backActive = false;
-    }
-    // Đi tới (không phải Back): ghi nhớ trang hiện tại vào lịch sử.
-    if (!back) {
-      final from = section == 'Chi tiết bài hát' ? detailBackSection : section;
-      if (from != value && (navStack.isEmpty || navStack.last != from)) {
-        navStack.add(from);
-        if (navStack.length > 20) navStack.removeAt(0);
-      }
-    }
+  void navigate(String value) {
     // Lưu trạng thái tab hiện tại trước khi rời đi.
     if (cacheable.contains(section) && !loading) {
       snapshots[section] = {
@@ -453,7 +427,6 @@ class _MusicHomeState extends State<MusicHome>
       );
       Future.delayed(const Duration(seconds: 1), old.dispose);
     }
-    detailStack.clear();
     setState(() {
       section = value;
       playlist = null;
@@ -819,11 +792,7 @@ class _MusicHomeState extends State<MusicHome>
         // Đi tới: trang mới nằm trên. Quay lại: trang đang rời đi nằm trên.
         layoutBuilder: (current, previous) => Stack(
           fit: StackFit.expand,
-          // Vừa vuốt xong: trang cũ đã trượt ra khỏi màn hình rồi, bỏ hẳn nó
-          // (không để AnimatedSwitcher chạy lại 500ms trượt-ra lần nữa).
-          children: skipSwitch
-              ? [?current]
-              : reversePage
+          children: reversePage
               ? [?current, ...previous]
               : [...previous, ?current],
         ),
@@ -871,13 +840,11 @@ class _MusicHomeState extends State<MusicHome>
       );
     // Trang hiện tại bám theo ngón tay (FractionalTranslation theo backCtl);
     // trang phía sau chỉ được dựng khi đang kéo, lùi nhẹ sang trái (parallax).
-    // Chỉ coi là đang kéo khi thật sự có trang nền để hiện.
-    final dragging = backActive && interactiveBack;
     return ClipRect(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (dragging)
+          if (backActive)
             AnimatedBuilder(
               animation: backCtl,
               child: backUnderlay(wide),
@@ -891,28 +858,25 @@ class _MusicHomeState extends State<MusicHome>
           AnimatedBuilder(
             animation: backCtl,
             child: switcher,
-            builder: (_, child) {
-              final v = dragging ? backCtl.value : 0.0;
-              return FractionalTranslation(
-                translation: Offset(v, 0),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    boxShadow: v > 0
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withValues(
-                                alpha: .22 * (1 - v),
-                              ),
-                              blurRadius: 16,
-                              offset: const Offset(-4, 0),
+            builder: (_, child) => FractionalTranslation(
+              translation: Offset(backCtl.value, 0),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  boxShadow: backCtl.value > 0
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: .22 * (1 - backCtl.value),
                             ),
-                          ]
-                        : null,
-                  ),
-                  child: child,
+                            blurRadius: 16,
+                            offset: const Offset(-4, 0),
+                          ),
+                        ]
+                      : null,
                 ),
-              );
-            },
+                child: child,
+              ),
+            ),
           ),
         ],
       ),
@@ -944,12 +908,8 @@ class _MusicHomeState extends State<MusicHome>
       return songDetailPage(wide);
     }
     if (section == 'Dành cho bạn') return forYouFeed(wide);
-    return SavedScroll(
-      // Mỗi trang (tab / playlist) có một vị trí cuộn riêng.
-      id: playlist != null ? 'playlist:${playlist!['id']}' : 'tab:$section',
-      store: scrollOffsets,
-      builder: (scrollController) => ListView(
-        controller: scrollController,
+    return SizedBox(
+      child: ListView(
         padding: EdgeInsets.fromLTRB(
           wide ? 32 : 16,
           12 + (section == 'Tìm kiếm' ? 0 : glassTop),
@@ -1662,58 +1622,3 @@ Widget musicTile({
   ),
 );
 
-/// ListView nhớ vị trí cuộn: khi dựng lại (quay về từ trang chi tiết, đổi tab
-/// rồi quay lại...) sẽ cuộn đúng tới chỗ đã xem trước đó.
-class SavedScroll extends StatefulWidget {
-  const SavedScroll({
-    super.key,
-    required this.id,
-    required this.store,
-    required this.builder,
-  });
-  final String id;
-  final Map<String, double> store;
-  final Widget Function(ScrollController controller) builder;
-
-  @override
-  State<SavedScroll> createState() => _SavedScrollState();
-}
-
-class _SavedScrollState extends State<SavedScroll> {
-  late ScrollController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _attach();
-  }
-
-  void _attach() {
-    controller = ScrollController(
-      initialScrollOffset: widget.store[widget.id] ?? 0,
-    )..addListener(_save);
-  }
-
-  void _save() {
-    if (controller.hasClients) widget.store[widget.id] = controller.offset;
-  }
-
-  @override
-  void didUpdateWidget(SavedScroll old) {
-    super.didUpdateWidget(old);
-    // Đổi sang trang khác (cùng vị trí trong cây widget): nạp offset của trang đó.
-    if (old.id != widget.id) {
-      controller.dispose();
-      _attach();
-    }
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.builder(controller);
-}
