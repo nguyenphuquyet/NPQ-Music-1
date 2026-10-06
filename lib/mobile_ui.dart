@@ -85,8 +85,6 @@ extension _MobileInterface on _MusicHomeState {
 
   // Vuốt từ mép trái sang phải để quay lại, bám theo ngón tay như iOS.
   Widget edgeBackSwipe() {
-    var dx = 0.0;
-    var interactive = false;
     var width = MediaQuery.sizeOf(context).width;
     if (width > 480) width = 480;
 
@@ -118,29 +116,29 @@ extension _MobileInterface on _MusicHomeState {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onHorizontalDragStart: (_) {
-        dx = 0;
-        interactive = interactiveBack;
+        backDx = 0;
+        backInteractive = interactiveBack;
         // Luôn dọn trạng thái kéo cũ (kể cả khi trang này không kéo được).
         backCtl.stop();
         backCtl.value = 0;
-        updateUI(() => backActive = interactive);
+        updateUI(() => backActive = backInteractive);
       },
       onHorizontalDragUpdate: (d) {
-        dx += d.delta.dx;
-        if (interactive) {
+        backDx += d.delta.dx;
+        if (backInteractive) {
           backCtl.value = (backCtl.value + d.delta.dx / width).clamp(0.0, 1.0);
         }
       },
       onHorizontalDragEnd: (d) {
         final v = d.primaryVelocity ?? 0;
-        if (interactive) {
+        if (backInteractive) {
           finish(v > 700 || (v > -700 && backCtl.value > .4));
-        } else if (dx > 60 || v > 500) {
+        } else if (backDx > 60 || v > 500) {
           goBack();
         }
       },
       onHorizontalDragCancel: () {
-        if (interactive) finish(false);
+        if (backInteractive) finish(false);
       },
     );
   }

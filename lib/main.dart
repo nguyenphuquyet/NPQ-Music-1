@@ -171,6 +171,10 @@ class _MusicHomeState extends State<MusicHome>
     duration: const Duration(milliseconds: 320),
   );
   bool backActive = false, skipSwitch = false;
+  // Trạng thái cú vuốt đang diễn ra. PHẢI nằm trong State (không phải biến
+  // cục bộ trong build) vì widget vuốt được dựng lại giữa chừng khi setState.
+  double backDx = 0;
+  bool backInteractive = false;
   // Bộ nhớ đệm theo tab: quay lại tab/trang cũ hiện ngay, dữ liệu mới được
   // tải ngầm rồi cập nhật sau (không hiện loading, không nhảy nội dung).
   final snapshots = <String, Map<String, dynamic>>{};
