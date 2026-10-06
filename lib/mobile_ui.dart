@@ -151,10 +151,10 @@ extension _MobileInterface on _MusicHomeState {
     // còn nội dung header / tab bar tự chừa inset bên trong. GlassScaffold đo
     // chiều cao qua KeyedSubtree nên glassTop / glassBottom đã gồm cả inset.
     final safe = MediaQuery.viewPaddingOf(context);
-    // iPhone: home indicator nằm sát mép dưới nên không cần chừa trọn 34pt,
-    // bớt đi để tab bar hạ thấp xuống gần home bar hơn.
+    // iPhone: chừa gần đủ inset của home indicator (34pt), chỉ bớt nhẹ 8pt
+    // để tab bar không bị sát thanh home. Muốn cách xa hơn thì giảm số 8.
     final tabBottom = defaultTargetPlatform == TargetPlatform.iOS
-        ? (safe.bottom - 18).clamp(0.0, 40.0)
+        ? (safe.bottom - 8).clamp(0.0, 40.0)
         : safe.bottom;
     return ColoredBox(
       color: Theme.of(context).colorScheme.surface,
