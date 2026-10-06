@@ -910,6 +910,14 @@ class _MusicHomeState extends State<MusicHome>
     if (section == 'Dành cho bạn') return forYouFeed(wide);
     return SizedBox(
       child: ListView(
+        // Ghi nhớ vị trí cuộn theo từng tab/playlist: quay lại từ trang chi
+        // tiết bài hát (hoặc đổi tab) thì list về đúng chỗ cũ. Tìm kiếm thì
+        // không nhớ vì kết quả luôn đổi.
+        key: section == 'Tìm kiếm'
+            ? const ValueKey('list:search')
+            : PageStorageKey<String>(
+                'list:$section:${playlist?['id'] ?? ''}',
+              ),
         padding: EdgeInsets.fromLTRB(
           wide ? 32 : 16,
           12 + (section == 'Tìm kiếm' ? 0 : glassTop),
