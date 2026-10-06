@@ -51,6 +51,8 @@ extension _ProfileUI on _MusicHomeState {
   Future<void> signOut() => guard(() async {
     await api.logout();
     snapshots.clear();
+    navStack.clear();
+    scrollOffsets.clear();
     updateUI(() {
       user = null;
       favorites.clear();

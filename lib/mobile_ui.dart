@@ -15,15 +15,24 @@ extension _MobileInterface on _MusicHomeState {
       section == 'Chi tiết bài hát' ||
       section == 'Tìm kiếm' ||
       playlist != null ||
+      navStack.isNotEmpty ||
       section != 'Khám phá';
 
   void goBack() {
     if (section == 'Chi tiết bài hát') {
       closeSong();
     } else if (playlist != null) {
-      navigate('Playlist');
-    } else if (section != 'Khám phá') {
-      navigate('Khám phá');
+      navigate('Playlist', back: true);
+    } else {
+      // Quay lại đúng trang trước đó (bỏ qua các mục trùng với trang hiện tại).
+      while (navStack.isNotEmpty && navStack.last == section) {
+        navStack.removeLast();
+      }
+      if (navStack.isNotEmpty) {
+        navigate(navStack.removeLast(), back: true);
+      } else if (section != 'Khám phá') {
+        navigate('Khám phá', back: true);
+      }
     }
   }
 
@@ -425,7 +434,7 @@ extension _MobileInterface on _MusicHomeState {
               tooltip: 'Quay lại',
               onPressed: section == 'Chi tiết bài hát'
                   ? closeSong
-                  : () => navigate('Khám phá'),
+                  : goBack,
             ),
           )
         else

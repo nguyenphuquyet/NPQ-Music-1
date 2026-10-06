@@ -174,6 +174,10 @@ class _MusicHomeState extends State<MusicHome>
   // Bộ nhớ đệm theo tab: quay lại tab/trang cũ hiện ngay, dữ liệu mới được
   // tải ngầm rồi cập nhật sau (không hiện loading, không nhảy nội dung).
   final snapshots = <String, Map<String, dynamic>>{};
+  // Lịch sử các tab đã đi qua (để nút Back quay lại lần lượt) và vị trí cuộn
+  // của từng trang (để quay lại là về đúng chỗ đang xem, không nhảy lên đầu).
+  final navStack = <String>[];
+  final scrollOffsets = <String, double>{};
   static const cacheable = [
     'Khám phá',
     'Yêu thích',
@@ -393,7 +397,15 @@ class _MusicHomeState extends State<MusicHome>
     }
   }
 
-  void navigate(String value) {
+  void navigate(String value, {bool back = false}) {
+    // Đi tới (không phải Back): ghi nhớ trang hiện tại vào lịch sử.
+    if (!back) {
+      final from = section == 'Chi tiết bài hát' ? detailBackSection : section;
+      if (from != value && (navStack.isEmpty || navStack.last != from)) {
+        navStack.add(from);
+        if (navStack.length > 20) navStack.removeAt(0);
+      }
+    }
     // Lưu trạng thái tab hiện tại trước khi rời đi.
     if (cacheable.contains(section) && !loading) {
       snapshots[section] = {
@@ -908,8 +920,12 @@ class _MusicHomeState extends State<MusicHome>
       return songDetailPage(wide);
     }
     if (section == 'Dành cho bạn') return forYouFeed(wide);
-    return SizedBox(
-      child: ListView(
+    return SavedScroll(
+      // Mỗi trang (tab / playlist) có một vị trí cuộn riêng.
+      id: playlist != null ? 'playlist:${playlist!['id']}' : 'tab:$section',
+      store: scrollOffsets,
+      builder: (scrollController) => ListView(
+        controller: scrollController,
         padding: EdgeInsets.fromLTRB(
           wide ? 32 : 16,
           12 + (section == 'Tìm kiếm' ? 0 : glassTop),
@@ -1622,3 +1638,58 @@ Widget musicTile({
   ),
 );
 
+/// ListView nhớ vị trí cuộn: khi dựng lại (quay về từ trang chi tiết, đổi tab
+/// rồi quay lại...) sẽ cuộn đúng tới chỗ đã xem trước đó.
+class SavedScroll extends StatefulWidget {
+  const SavedScroll({
+    super.key,
+    required this.id,
+    required this.store,
+    required this.builder,
+  });
+  final String id;
+  final Map<String, double> store;
+  final Widget Function(ScrollController controller) builder;
+
+  @override
+  State<SavedScroll> createState() => _SavedScrollState();
+}
+
+class _SavedScrollState extends State<SavedScroll> {
+  late ScrollController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _attach();
+  }
+
+  void _attach() {
+    controller = ScrollController(
+      initialScrollOffset: widget.store[widget.id] ?? 0,
+    )..addListener(_save);
+  }
+
+  void _save() {
+    if (controller.hasClients) widget.store[widget.id] = controller.offset;
+  }
+
+  @override
+  void didUpdateWidget(SavedScroll old) {
+    super.didUpdateWidget(old);
+    // Đổi sang trang khác (cùng vị trí trong cây widget): nạp offset của trang đó.
+    if (old.id != widget.id) {
+      controller.dispose();
+      _attach();
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(controller);
+}
