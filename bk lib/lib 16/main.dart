@@ -20,7 +20,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:tdesign_flutter/tdesign_flutter.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'player.dart';
 part 'mobile_ui.dart';
@@ -40,16 +39,11 @@ Future<void> main() async {
   // Phát nền + điều khiển ở Control Center / màn hình khoá.
   await initAudioService();
   // Đọc chế độ sáng/tối đã lưu từ lần trước.
-  var savedDark = false;
-  try {
-    savedDark = (await SharedPreferences.getInstance()).getBool(_darkKey) ?? false;
-  } catch (_) {}
+  final savedDark = await loadDarkPref() ?? false;
   // Android: vẽ tràn viền, thanh trạng thái / thanh điều hướng trong suốt.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(MusicApp(initialDark: savedDark));
 }
-
-const _darkKey = 'dark_mode';
 
 const blue = Color(0xFF0052D9);
 // Màu động theo theme sáng/tối (được cập nhật trong MusicApp.build).
@@ -69,9 +63,7 @@ class _MusicAppState extends State<MusicApp> {
 
   Future<void> _toggleTheme() async {
     setState(() => dark = !dark);
-    try {
-      await (await SharedPreferences.getInstance()).setBool(_darkKey, dark);
-    } catch (_) {}
+    await saveDarkPref(dark);
   }
 
   @override
