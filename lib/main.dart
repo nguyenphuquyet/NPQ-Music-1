@@ -2,7 +2,14 @@ import 'dart:async';
 import 'dart:ui' show ImageFilter, FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
-    show Clipboard, ClipboardData, KeyDownEvent, LogicalKeyboardKey;
+    show
+        Clipboard,
+        ClipboardData,
+        KeyDownEvent,
+        LogicalKeyboardKey,
+        SystemChrome,
+        SystemUiMode,
+        SystemUiOverlayStyle;
 import 'package:flutter/cupertino.dart'
     show
         CupertinoPageRoute,
@@ -12,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:tdesign_flutter/tdesign_flutter.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'player.dart';
 part 'mobile_ui.dart';
@@ -30,8 +38,17 @@ Future<void> main() async {
   await initApiStorage();
   // Phát nền + điều khiển ở Control Center / màn hình khoá.
   await initAudioService();
-  runApp(const MusicApp());
+  // Đọc chế độ sáng/tối đã lưu từ lần trước.
+  var savedDark = false;
+  try {
+    savedDark = (await SharedPreferences.getInstance()).getBool(_darkKey) ?? false;
+  } catch (_) {}
+  // Android: vẽ tràn viền, thanh trạng thái / thanh điều hướng trong suốt.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  runApp(MusicApp(initialDark: savedDark));
 }
+
+const _darkKey = 'dark_mode';
 
 const blue = Color(0xFF0052D9);
 // Màu động theo theme sáng/tối (được cập nhật trong MusicApp.build).
@@ -40,13 +57,22 @@ Color mutedColor = const Color(0xFF69768C);
 Color dangerColor = const Color(0xFFD54941);
 
 class MusicApp extends StatefulWidget {
-  const MusicApp({super.key});
+  final bool initialDark;
+  const MusicApp({super.key, this.initialDark = false});
   @override
   State<MusicApp> createState() => _MusicAppState();
 }
 
 class _MusicAppState extends State<MusicApp> {
-  bool dark = false;
+  late bool dark = widget.initialDark;
+
+  Future<void> _toggleTheme() async {
+    setState(() => dark = !dark);
+    try {
+      await (await SharedPreferences.getInstance()).setBool(_darkKey, dark);
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     accentColor = dark ? const Color(0xFF83ADFF) : blue;
@@ -67,18 +93,32 @@ class _MusicAppState extends State<MusicApp> {
       fontSize: 14,
       color: dark ? const Color(0xFFF1F3F9) : const Color(0xFF17243D),
     ),
-    builder: (context, child) => Theme(
-      data: musicTheme(dark),
-      child: Material(
-        type: MaterialType.transparency,
-        child: DefaultTextStyle(
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            decoration: TextDecoration.none,
-            color: dark ? const Color(0xFFEEF3FA) : const Color(0xFF17243D),
+    builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+      // Thanh trạng thái + thanh điều hướng Android trong suốt, để app quyết
+      // định nền; biểu tượng đổi màu theo giao diện sáng/tối.
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+        statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness:
+            dark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+      ),
+      child: Theme(
+        data: musicTheme(dark),
+        child: Material(
+          type: MaterialType.transparency,
+          child: DefaultTextStyle(
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              decoration: TextDecoration.none,
+              color: dark ? const Color(0xFFEEF3FA) : const Color(0xFF17243D),
+            ),
+            child: child!,
           ),
-          child: child!,
         ),
       ),
     ),
@@ -86,9 +126,7 @@ class _MusicAppState extends State<MusicApp> {
       settings: settings,
       pageBuilder: (context, animation, secondary) => builder(context),
     ),
-    home: MusicHome(
-      onTheme: () => setState(() => dark = !dark),
-    ),
+    home: MusicHome(onTheme: _toggleTheme),
   );
 }
 
