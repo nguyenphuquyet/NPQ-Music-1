@@ -6,6 +6,10 @@ typedef Json = Map<String, dynamic>;
 /// Khởi tạo nơi lưu cookie (gọi một lần trong main trước khi tạo Api).
 Future<void> initApiStorage() => initNetwork();
 
+/// Chế độ sáng/tối đã lưu (null nếu chưa lưu).
+Future<bool?> loadDarkPref() => readDarkPref();
+Future<void> saveDarkPref(bool dark) => writeDarkPref(dark);
+
 class Api {
   static const baseUrl = 'https://music.nguyenphuquyet.online';
   final Dio dio;
