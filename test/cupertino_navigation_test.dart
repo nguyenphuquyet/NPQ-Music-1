@@ -3,6 +3,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:npq_music/cupertino_navigation.dart';
 
 void main() {
+  testWidgets('Nested song pages pop one at a time, including repeated songs', (
+    tester,
+  ) async {
+    final history = ['tabs'];
+    late StateSetter update;
+    await tester.pumpWidget(CupertinoApp(
+      home: StatefulBuilder(builder: (context, setState) {
+        update = setState;
+        return CupertinoNavigation(
+          routeKey: ValueKey(history.last),
+          onBack: () => update(() => history.removeLast()),
+          child: Center(child: Text(history.last)),
+        );
+      }),
+    ));
+    for (final entry in ['song:A:1', 'song:B:2', 'song:A:3']) {
+      update(() => history.add(entry));
+      await tester.pumpAndSettle();
+      expect(find.text(entry), findsOneWidget);
+    }
+    for (final previous in ['song:B:2', 'song:A:1', 'tabs']) {
+      Navigator.of(tester.element(find.text(history.last))).pop();
+      await tester.pumpAndSettle();
+      expect(history.last, previous);
+      expect(find.text(previous), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Cupertino push, cancelled swipe, completed swipe and back', (
     tester,
   ) async {

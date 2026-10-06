@@ -159,6 +159,8 @@ class _MusicHomeState extends State<MusicHome> {
   List<Json> songs = [], genres = [], playlists = [];
   Json? user, playlist, songDetail;
   List<Json> detailQueue = [];
+  final detailHistory = <({Json song, List<Json> queue, int routeId})>[];
+  int detailRouteId = 0, nextDetailRouteId = 0;
   String detailBackSection = 'Khám phá';
   Json? detailBackPlaylist;
   String section = 'Khám phá', genre = '', query = '';
@@ -417,6 +419,7 @@ class _MusicHomeState extends State<MusicHome> {
     }
     setState(() {
       section = value;
+      detailHistory.clear();
       playlist = null;
       query = '';
       genre = '';
@@ -758,7 +761,7 @@ class _MusicHomeState extends State<MusicHome> {
   Widget pageBody(bool wide) {
     final routeKey = ValueKey(
       section == 'Chi tiết bài hát'
-          ? 'song'
+          ? 'song:$detailRouteId'
           : playlist != null
           ? 'playlist:${playlist!['id']}'
           : section == 'Tìm kiếm'

@@ -14,12 +14,28 @@ extension _SongDetails on _MusicHomeState {
     }
     if (!mounted || ticket != requestId) return;
     if (section != 'Chi tiết bài hát') {
+      detailHistory.clear();
       detailBackSection = section;
       detailBackPlaylist = playlist;
     }
     debounce?.cancel();
     updateUI(() {
-      detailQueue = List.of(source);
+      final nested = section == 'Chi tiết bài hát' && songDetail != null;
+      if (nested) {
+        detailHistory.add((
+          song: songDetail!,
+          queue: List.of(detailQueue),
+          routeId: detailRouteId,
+        ));
+      }
+      // Related rows exclude the current song; retain the complete queue
+      // when drilling into another detail page.
+      detailQueue = nested
+          ? {
+              for (final song in [...detailQueue, ...source]) song['id']: song,
+            }.values.toList()
+          : List.of(source);
+      detailRouteId = ++nextDetailRouteId;
       songDetail = detail;
       section = 'Chi tiết bài hát';
       playlist = null;
@@ -29,6 +45,15 @@ extension _SongDetails on _MusicHomeState {
   }
 
   void closeSong() {
+    if (detailHistory.isNotEmpty) {
+      updateUI(() {
+        final previous = detailHistory.removeLast();
+        songDetail = previous.song;
+        detailQueue = previous.queue;
+        detailRouteId = previous.routeId;
+      });
+      return;
+    }
     updateUI(() {
       section = detailBackSection;
       playlist = detailBackPlaylist;
