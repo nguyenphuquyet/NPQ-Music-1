@@ -120,11 +120,10 @@ extension _MobileInterface on _MusicHomeState {
       onHorizontalDragStart: (_) {
         dx = 0;
         interactive = interactiveBack;
-        if (interactive) {
-          backCtl.stop();
-          backCtl.value = 0;
-          updateUI(() => backActive = true);
-        }
+        // Luôn dọn trạng thái kéo cũ (kể cả khi trang này không kéo được).
+        backCtl.stop();
+        backCtl.value = 0;
+        updateUI(() => backActive = interactive);
       },
       onHorizontalDragUpdate: (d) {
         dx += d.delta.dx;

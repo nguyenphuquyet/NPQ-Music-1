@@ -401,6 +401,13 @@ class _MusicHomeState extends State<MusicHome>
   }
 
   void navigate(String value, {bool back = false}) {
+    // Đổi trang bằng cách khác (nút Quay lại, tab...) thì bỏ mọi trạng thái
+    // kéo dở, tránh trang nền bị kẹt ở mép trái.
+    if (backActive || backCtl.value != 0) {
+      backCtl.stop();
+      backCtl.value = 0;
+      backActive = false;
+    }
     // Đi tới (không phải Back): ghi nhớ trang hiện tại vào lịch sử.
     if (!back) {
       final from = section == 'Chi tiết bài hát' ? detailBackSection : section;
@@ -856,11 +863,13 @@ class _MusicHomeState extends State<MusicHome>
       );
     // Trang hiện tại bám theo ngón tay (FractionalTranslation theo backCtl);
     // trang phía sau chỉ được dựng khi đang kéo, lùi nhẹ sang trái (parallax).
+    // Chỉ coi là đang kéo khi thật sự có trang nền để hiện.
+    final dragging = backActive && interactiveBack;
     return ClipRect(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (backActive)
+          if (dragging)
             AnimatedBuilder(
               animation: backCtl,
               child: backUnderlay(wide),
@@ -874,25 +883,28 @@ class _MusicHomeState extends State<MusicHome>
           AnimatedBuilder(
             animation: backCtl,
             child: switcher,
-            builder: (_, child) => FractionalTranslation(
-              translation: Offset(backCtl.value, 0),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  boxShadow: backCtl.value > 0
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: .22 * (1 - backCtl.value),
+            builder: (_, child) {
+              final v = dragging ? backCtl.value : 0.0;
+              return FractionalTranslation(
+                translation: Offset(v, 0),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    boxShadow: v > 0
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(
+                                alpha: .22 * (1 - v),
+                              ),
+                              blurRadius: 16,
+                              offset: const Offset(-4, 0),
                             ),
-                            blurRadius: 16,
-                            offset: const Offset(-4, 0),
-                          ),
-                        ]
-                      : null,
+                          ]
+                        : null,
+                  ),
+                  child: child,
                 ),
-                child: child,
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
