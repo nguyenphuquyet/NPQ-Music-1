@@ -305,6 +305,9 @@ class GlassSurface extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final double shadowAlpha, shadowBlur;
   final Offset shadowOffset;
+
+  /// Có chạy hiệu ứng hiện/ẩn theo animation của route popup hay không.
+  final bool animateWithRoute;
   const GlassSurface({
     super.key,
     required this.child,
@@ -313,42 +316,57 @@ class GlassSurface extends StatelessWidget {
     this.shadowAlpha = .2,
     this.shadowBlur = 36,
     this.shadowOffset = const Offset(0, 14),
+    this.animateWithRoute = true,
   });
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final shape = BorderRadius.circular(radius);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: shape,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: shadowAlpha),
-            blurRadius: shadowBlur,
-            offset: shadowOffset,
+    final route = animateWithRoute ? ModalRoute.of(context) : null;
+    final anim = route?.animation ?? kAlwaysCompleteAnimation;
+
+    return AnimatedBuilder(
+      animation: anim,
+      builder: (context, _) {
+        final t = Curves.easeOutCubic.transform(anim.value.clamp(0.0, 1.0));
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: shape,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: shadowAlpha * t),
+                blurRadius: shadowBlur,
+                offset: shadowOffset,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: shape,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              color: cs.surface.withValues(alpha: dark ? .7 : .78),
-              borderRadius: shape,
-              border: Border.all(
-                color: dark
-                    ? Colors.white.withValues(alpha: .1)
-                    : Colors.white.withValues(alpha: .7),
+          child: ClipRRect(
+            borderRadius: shape,
+            child: BackdropFilter(
+              // Blur tăng dần ngay từ lúc mở (không dùng Opacity bọc ngoài).
+              filter: ImageFilter.blur(
+                sigmaX: 0.01 + 24 * t,
+                sigmaY: 0.01 + 24 * t,
+              ),
+              child: Container(
+                padding: padding,
+                decoration: BoxDecoration(
+                  color: cs.surface.withValues(alpha: (dark ? .7 : .78) * t),
+                  borderRadius: shape,
+                  border: Border.all(
+                    color: Colors.white.withValues(
+                      alpha: (dark ? .1 : .7) * t,
+                    ),
+                  ),
+                ),
+                // Opacity đặt BÊN TRONG BackdropFilter nên không phá blur.
+                child: Opacity(opacity: t, child: child),
               ),
             ),
-            child: child,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -368,12 +386,9 @@ Future<T?> appDialog<T>({
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeIn,
     );
-    return FadeTransition(
-      opacity: c,
-      child: ScaleTransition(
-        scale: Tween<double>(begin: .92, end: 1).animate(c),
-        child: child,
-      ),
+    return ScaleTransition(
+      scale: Tween<double>(begin: .92, end: 1).animate(c),
+      child: child,
     );
   },
   pageBuilder: (ctx, a, b) => Center(
@@ -424,6 +439,7 @@ Future<T?> appSheet<T>({
             child: GlassSurface(
               radius: 28,
               shadowAlpha: .22,
+              animateWithRoute: false,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -497,13 +513,10 @@ Future<T?> appPopover<T>({
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeIn,
       );
-      return FadeTransition(
-        opacity: c,
-        child: ScaleTransition(
-          alignment: opensUp ? Alignment.bottomRight : Alignment.topRight,
-          scale: Tween<double>(begin: .88, end: 1).animate(c),
-          child: child,
-        ),
+      return ScaleTransition(
+        alignment: opensUp ? Alignment.bottomRight : Alignment.topRight,
+        scale: Tween<double>(begin: .88, end: 1).animate(c),
+        child: child,
       );
     },
     pageBuilder: (ctx, a, b) {
