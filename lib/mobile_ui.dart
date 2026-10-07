@@ -77,10 +77,16 @@ extension _MobileInterface on _MusicHomeState {
                         (i) => TDBottomTabBarTabConfig(
                           selectTabTextStyle: TextStyle(
                             fontSize: 10,
+                            height: 1.4,
+                            fontFamily: '.SF Pro Text',
+                            fontFamilyFallback: const ['Roboto'],
                             color: TDTheme.of(context).brandNormalColor,
                           ),
                           unselectTabTextStyle: TextStyle(
                             fontSize: 10,
+                            height: 1.4,
+                            fontFamily: '.SF Pro Text',
+                            fontFamilyFallback: const ['Roboto'],
                             color: TDTheme.of(context).textColorSecondary,
                           ),
                           tabText: [
