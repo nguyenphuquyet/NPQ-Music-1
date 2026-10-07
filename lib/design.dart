@@ -329,7 +329,11 @@ class GlassSurface extends StatelessWidget {
     return AnimatedBuilder(
       animation: anim,
       builder: (context, _) {
-        final t = Curves.easeOutCubic.transform(anim.value.clamp(0.0, 1.0));
+        // Mở: nhanh rồi chậm dần. Đóng: tụt nhanh ngay từ đầu (không bị "đuôi" lề mề).
+        final v = anim.value.clamp(0.0, 1.0);
+        final t = anim.status == AnimationStatus.reverse
+            ? Curves.easeIn.transform(v)
+            : Curves.easeOutCubic.transform(v);
         return DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: shape,
@@ -379,7 +383,7 @@ Future<T?> appDialog<T>({
   barrierDismissible: true,
   barrierLabel: 'Đóng',
   barrierColor: Colors.black.withValues(alpha: .5),
-  transitionDuration: const Duration(milliseconds: 220),
+  transitionDuration: const Duration(milliseconds: 180),
   transitionBuilder: (ctx, a, b, child) {
     final c = CurvedAnimation(
       parent: a,
@@ -506,7 +510,7 @@ Future<T?> appPopover<T>({
     barrierDismissible: true,
     barrierLabel: 'Đóng',
     barrierColor: Colors.black.withValues(alpha: .12),
-    transitionDuration: const Duration(milliseconds: 170),
+    transitionDuration: const Duration(milliseconds: 150),
     transitionBuilder: (ctx, a, b, child) {
       final c = CurvedAnimation(
         parent: a,
