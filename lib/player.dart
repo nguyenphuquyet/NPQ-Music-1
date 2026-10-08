@@ -107,8 +107,10 @@ class MusicPlayer extends ChangeNotifier {
         artist: song['artist']?.toString() ?? '',
         album: 'NPQ Music',
         artUri: cover.isEmpty ? null : Uri.parse(cover),
-        duration:
-            audio.duration ?? (seconds == null ? null : Duration(seconds: seconds)),
+        // Ưu tiên thời lượng từ API (audio.duration có thể sai với MP3 VBR).
+        duration: (seconds != null && seconds > 0)
+            ? Duration(seconds: seconds)
+            : audio.duration,
       ),
     );
   }

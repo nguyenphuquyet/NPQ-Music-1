@@ -181,9 +181,11 @@ class _SeekBarState extends State<SeekBar> {
       final a = widget.player.audio;
       final fallback =
           ((widget.player.current?['duration'] as num?) ?? 0) * 1000.0;
-      final total = (a.duration?.inMilliseconds ?? 0) > 0
-          ? a.duration!.inMilliseconds.toDouble()
-          : fallback.toDouble();
+      // Ưu tiên thời lượng từ API: file MP3 VBR thiếu header khiến
+      // audio.duration bị ước lượng sai (hay gấp đôi) sau khi tải xong.
+      final total = fallback > 0
+          ? fallback.toDouble()
+          : (a.duration?.inMilliseconds ?? 0).toDouble();
       final max = total > 0 ? total : 1.0;
       final value = (drag ?? a.position.inMilliseconds.toDouble()).clamp(
         0.0,
@@ -404,7 +406,10 @@ extension _PlayerUI on _MusicHomeState {
     builder: (ctx, _) {
       final song = player.current;
       final cs = Theme.of(ctx).colorScheme;
-      final total = player.audio.duration?.inMilliseconds ?? 0;
+      final apiSeconds = (song?['duration'] as num?)?.toInt() ?? 0;
+      final total = apiSeconds > 0
+          ? apiSeconds * 1000
+          : (player.audio.duration?.inMilliseconds ?? 0);
       final progress = total <= 0
           ? 0.0
           : (player.audio.position.inMilliseconds / total).clamp(0.0, 1.0);
