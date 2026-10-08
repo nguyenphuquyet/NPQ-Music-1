@@ -876,7 +876,9 @@ Future<T?> appSlidePage<T>({
       child: Center(
         child: ConstrainedBox(
           constraints: constraints ?? const BoxConstraints(maxWidth: 480),
-          child: SafeArea(child: builder(ctx)),
+          // Không bọc SafeArea: SafeArea cắt cứng nội dung cuộn ở mép status bar
+          // / home indicator. Trang con tự cộng MediaQuery.paddingOf(ctx) vào padding.
+          child: builder(ctx),
         ),
       ),
     ),
