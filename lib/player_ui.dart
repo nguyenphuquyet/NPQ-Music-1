@@ -65,7 +65,7 @@ class _ScrubBarState extends State<_ScrubBar> {
         : Colors.black.withValues(alpha: .1);
     return LayoutBuilder(
       builder: (_, area) {
-        final width = box.maxWidth;
+        final width = area.maxWidth;
         final inner = (width - pad * 2).clamp(0.0, double.infinity);
         final progress = widget.progress.clamp(0.0, 1.0);
         final trackH = dragging ? 6.0 : 4.0;
