@@ -64,7 +64,7 @@ class _ScrubBarState extends State<_ScrubBar> {
         ? Colors.white.withValues(alpha: .2)
         : Colors.black.withValues(alpha: .1);
     return LayoutBuilder(
-      builder: (_, box) {
+      builder: (_, area) {
         final width = box.maxWidth;
         final inner = (width - pad * 2).clamp(0.0, double.infinity);
         final progress = widget.progress.clamp(0.0, 1.0);
@@ -668,9 +668,9 @@ extension _PlayerUI on _MusicHomeState {
             ),
           ),
         );
-        final cover = Container(
-          width: wide ? 288 : 224,
-          height: wide ? 288 : 224,
+        Widget cover(double size) => Container(
+          width: size,
+          height: size,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: chip,
@@ -704,7 +704,8 @@ extension _PlayerUI on _MusicHomeState {
         final align = wide
             ? CrossAxisAlignment.start
             : CrossAxisAlignment.center;
-        final info = Column(
+        final infoHeader = Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: align,
           children: [
             Text(
@@ -740,6 +741,8 @@ extension _PlayerUI on _MusicHomeState {
             const SizedBox(height: 8),
             Text(
               song['artist'] ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 16, color: secondary),
             ),
             const SizedBox(height: 16),
@@ -771,30 +774,28 @@ extension _PlayerUI on _MusicHomeState {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 448),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: box,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  lyrics.isEmpty
-                      ? 'Lời bài hát sẽ sớm được cập nhật...'
-                      : lyrics,
-                  maxLines: 6,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 14, color: soft),
-                ),
+          ],
+        );
+        // Hộp lời bài hát: phần DUY NHẤT của màn hình này có thể cuộn.
+        final lyricsBox = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 448),
+          child: Container(
+            width: double.infinity,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: box,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                lyrics.isEmpty
+                    ? 'Lời bài hát sẽ sớm được cập nhật...'
+                    : lyrics,
+                style: TextStyle(fontSize: 14, color: soft),
               ),
             ),
-          ],
+          ),
         );
         Widget ctl(IconData i, double s, Color c, VoidCallback t) =>
             _ctl(i, s, c, t, pad: 8);
@@ -888,6 +889,18 @@ extension _PlayerUI on _MusicHomeState {
           ),
         );
 
+        final inset = MediaQuery.paddingOf(ctx);
+        final edge = wide ? 40.0 : 20.0;
+        final topBar = Row(
+          mainAxisAlignment: wide
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.spaceBetween,
+          children: [
+            if (!wide) circle(LucideIcons.listMusic, 18, queueSheet),
+            circle(LucideIcons.chevronDown, 20, () => Navigator.pop(ctx)),
+          ],
+        );
+
         return DefaultTextStyle(
           style: TextStyle(
             fontSize: 14,
@@ -907,101 +920,98 @@ extension _PlayerUI on _MusicHomeState {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Nền kính mờ: ảnh bìa + lớp blur + lớp phủ theo theme.
-                if (url.isEmpty)
-                  gradient
-                else
-                  Transform.scale(
-                    scale: 1.1,
-                    child: Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => gradient,
+                // Nền đặc để không lộ trang phía sau (route opaque: false).
+                ColoredBox(color: dark ? Colors.black : Colors.white),
+                // Nền kính mờ: ảnh bìa làm mờ trực tiếp (không dùng
+                // BackdropFilter nên mép màn hình không bị nhạt / xám).
+                ClipRect(
+                  child: Transform.scale(
+                    scale: 1.25,
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                      child: url.isEmpty
+                          ? gradient
+                          : Image.network(
+                              url,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => gradient,
+                            ),
                     ),
                   ),
-                BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                  child: ColoredBox(
-                    color: dark
-                        ? Colors.black.withValues(alpha: .45)
-                        : Colors.white.withValues(alpha: .55),
-                  ),
                 ),
-                SafeArea(
-                  child: SlideTransition(
-                    position:
-                        Tween<Offset>(
-                          begin: const Offset(0, .03),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(parent: anim, curve: Curves.easeOut),
-                        ),
+                ColoredBox(
+                  color: dark
+                      ? Colors.black.withValues(alpha: .45)
+                      : Colors.white.withValues(alpha: .55),
+                ),
+                // Không SafeArea, không SingleChildScrollView: inset được
+                // cộng vào padding nên nền phủ kín tới mép màn hình.
+                SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, .03),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      edge,
+                      inset.top + 16,
+                      edge,
+                      inset.bottom + 16,
+                    ),
                     child: LayoutBuilder(
-                      builder: (_, bounds) => SingleChildScrollView(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: wide ? 40 : 20,
-                          vertical: wide ? 32 : 20,
-                        ),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: bounds.maxHeight - (wide ? 64 : 40),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: wide
-                                        ? MainAxisAlignment.end
-                                        : MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      if (!wide)
-                                        circle(
-                                          LucideIcons.listMusic,
-                                          18,
-                                          queueSheet,
+                      builder: (_, area) {
+                        // Ảnh bìa co theo chiều cao còn lại để cả màn vừa khít.
+                        final coverSize = wide
+                            ? 288.0
+                            : (area.maxHeight * .26).clamp(120.0, 224.0).toDouble();
+                        return Column(
+                          children: [
+                            topBar,
+                            SizedBox(height: wide ? 24 : 12),
+                            Expanded(
+                              child: wide
+                                  ? Center(
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 1024,
                                         ),
-                                      circle(
-                                        LucideIcons.chevronDown,
-                                        20,
-                                        () => Navigator.pop(ctx),
+                                        child: Row(
+                                          children: [
+                                            cover(coverSize),
+                                            const SizedBox(width: 56),
+                                            Expanded(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  infoHeader,
+                                                  const SizedBox(height: 20),
+                                                  Flexible(child: lyricsBox),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ],
-                                  ),
-                                  SizedBox(height: wide ? 40 : 16),
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 1024,
+                                    )
+                                  : Column(
+                                      children: [
+                                        cover(coverSize),
+                                        const SizedBox(height: 20),
+                                        infoHeader,
+                                        const SizedBox(height: 16),
+                                        Flexible(child: lyricsBox),
+                                      ],
                                     ),
-                                    child: wide
-                                        ? Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              cover,
-                                              const SizedBox(width: 56),
-                                              Expanded(child: info),
-                                            ],
-                                          )
-                                        : Column(
-                                            children: [
-                                              cover,
-                                              const SizedBox(height: 32),
-                                              info,
-                                            ],
-                                          ),
-                                  ),
-                                ],
-                              ),
-                              Padding(
-                                padding: EdgeInsets.only(top: wide ? 40 : 32),
-                                child: controls,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.only(top: wide ? 24 : 12),
+                              child: controls,
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),
