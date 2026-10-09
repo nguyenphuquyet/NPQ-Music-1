@@ -63,6 +63,9 @@ class MusicPlayer extends ChangeNotifier {
   int repeat = 0;
   String? error;
   int _generation = 0;
+  bool _loading = false;
+  bool _handlingEnd = false;
+  int? _finishedGeneration;
   Json? get current => index >= 0 && index < queue.length ? queue[index] : null;
   MusicPlayer(this.api) {
     audioHandler?.player = this;
@@ -71,11 +74,25 @@ class MusicPlayer extends ChangeNotifier {
         notifyListeners();
         _publishState();
         if (state.processingState == ProcessingState.completed) {
-          unawaited(next(automatic: true));
+          unawaited(_finishTrack());
         }
       }),
     );
-    _subscriptions.add(audio.positionStream.listen((_) => notifyListeners()));
+    _subscriptions.add(
+      audio.positionStream.listen((position) {
+        notifyListeners();
+        final seconds = (current?['duration'] as num?)?.toDouble();
+        // MP3 VBR can report a duration longer than the actual track.
+        // Use the same backend duration as the progress bar.
+        if (audio.playing &&
+            audio.processingState == ProcessingState.ready &&
+            seconds != null &&
+            seconds > 0 &&
+            position.inMilliseconds >= (seconds * 1000).round()) {
+          unawaited(_finishTrack());
+        }
+      }),
+    );
     _subscriptions.add(
       audio.durationStream.listen((_) {
         notifyListeners();
@@ -151,6 +168,7 @@ class MusicPlayer extends ChangeNotifier {
   Future<void> play(List<Json> songs, int selected) async {
     if (songs.isEmpty) return;
     final generation = ++_generation;
+    _loading = true;
     queue = List.of(songs);
     index = selected;
     error = null;
@@ -186,6 +204,30 @@ class MusicPlayer extends ChangeNotifier {
         debugPrint('PLAY ERROR: $e');
         notifyListeners();
       }
+    } finally {
+      if (generation == _generation) _loading = false;
+    }
+  }
+
+  Future<void> _finishTrack() async {
+    // Position and completion events may arrive together. Advance only once,
+    // and ignore events belonging to the source being replaced.
+    if (_loading ||
+        _handlingEnd ||
+        _finishedGeneration == _generation ||
+        current == null) {
+      return;
+    }
+    _handlingEnd = true;
+    final generation = _generation;
+    _finishedGeneration = generation;
+    try {
+      await next(automatic: true);
+      if (_generation == generation && repeat == 2) {
+        _finishedGeneration = null;
+      }
+    } finally {
+      _handlingEnd = false;
     }
   }
 
@@ -193,8 +235,10 @@ class MusicPlayer extends ChangeNotifier {
     if (audio.playing) {
       await audio.pause();
     } else {
-      if (audio.processingState == ProcessingState.completed) {
+      if (audio.processingState == ProcessingState.completed ||
+          _finishedGeneration == _generation) {
         await audio.seek(Duration.zero);
+        _finishedGeneration = null;
       }
       unawaited(
         audio.play().catchError((Object e) {
@@ -208,7 +252,13 @@ class MusicPlayer extends ChangeNotifier {
   Future<void> next({bool automatic = false}) async {
     if (queue.isEmpty) return;
     if (automatic && repeat == 2) {
-      await play(queue, index);
+      await audio.seek(Duration.zero);
+      unawaited(
+        audio.play().catchError((Object e) {
+          error = 'Không phát được âm thanh: $e';
+          notifyListeners();
+        }),
+      );
       return;
     }
     if (automatic && index == queue.length - 1 && repeat == 0 && !shuffle) {
