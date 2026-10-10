@@ -67,6 +67,10 @@ class MusicPlayer extends ChangeNotifier {
   bool _handlingEnd = false;
   int? _finishedGeneration;
   Json? get current => index >= 0 && index < queue.length ? queue[index] : null;
+
+  /// Đang ở bài cuối và không lặp / không xáo -> hết hàng đợi thật sự.
+  bool get _atQueueEnd => index == queue.length - 1 && repeat == 0 && !shuffle;
+
   MusicPlayer(this.api) {
     audioHandler?.player = this;
     _subscriptions.add(
@@ -110,6 +114,7 @@ class MusicPlayer extends ChangeNotifier {
       }),
     );
   }
+
   // ---- Đồng bộ với Control Center / màn hình khoá ----
   void _publishItem() {
     final h = audioHandler;
@@ -136,6 +141,7 @@ class MusicPlayer extends ChangeNotifier {
     final h = audioHandler;
     if (h == null) return;
     final playing = audio.playing;
+    final hasSong = current != null;
     h.playbackState.add(
       PlaybackState(
         controls: [
@@ -150,11 +156,21 @@ class MusicPlayer extends ChangeNotifier {
         },
         androidCompactActionIndices: const [0, 1, 2],
         processingState: switch (audio.processingState) {
-          ProcessingState.idle => AudioProcessingState.idle,
+          // idle/completed giữa hai bài sẽ làm OS huỷ phiên phát (mất
+          // notification, gỡ foreground service) -> giữ loading/ready.
+          ProcessingState.idle =>
+            (hasSong && _loading)
+                ? AudioProcessingState.loading
+                : (hasSong
+                      ? AudioProcessingState.ready
+                      : AudioProcessingState.idle),
           ProcessingState.loading => AudioProcessingState.loading,
           ProcessingState.buffering => AudioProcessingState.buffering,
           ProcessingState.ready => AudioProcessingState.ready,
-          ProcessingState.completed => AudioProcessingState.completed,
+          ProcessingState.completed =>
+            (hasSong && !_atQueueEnd)
+                ? AudioProcessingState.ready
+                : AudioProcessingState.completed,
         },
         playing: playing,
         updatePosition: audio.position,
@@ -177,9 +193,10 @@ class MusicPlayer extends ChangeNotifier {
     _publishItem();
     final url = api.media(song['audioUrl']);
     debugPrint('PLAY -> ${song['title']} | $url');
+    _publishState(); // báo "loading" cho Control Center ngay
     try {
-      await audio.stop(); // dừng bài cũ trước khi nạp bài mới
-      if (generation != _generation) return;
+      // KHÔNG gọi audio.stop(): nó đẩy trạng thái về idle làm hệ điều hành
+      // huỷ notification / foreground service. setAudioSource tự thay nguồn cũ.
       if (url.isEmpty) throw Exception('Bài hát không có audioUrl');
       await audio.setAudioSource(AudioSource.uri(Uri.parse(url)));
       if (generation != _generation) return;
@@ -189,6 +206,7 @@ class MusicPlayer extends ChangeNotifier {
           notifyListeners();
         }),
       );
+      _publishState();
       unawaited(
         api
             .request(
@@ -205,7 +223,10 @@ class MusicPlayer extends ChangeNotifier {
         notifyListeners();
       }
     } finally {
-      if (generation == _generation) _loading = false;
+      if (generation == _generation) {
+        _loading = false;
+        _publishState();
+      }
     }
   }
 
